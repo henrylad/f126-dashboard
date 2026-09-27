@@ -1,0 +1,21 @@
+# Live:       docker compose up -d
+# Simulator:  docker compose run --rm --service-ports pitwall --sim
+# Record:     docker compose run --rm --service-ports pitwall --record recordings/race.f1rec
+services:
+  pitwall:
+    build: .
+    image: f1-pitwall
+    container_name: f1-pitwall
+    restart: unless-stopped
+    ports:
+      - "${PITWALL_HTTP_PORT:-5173}:5173"      # dashboard
+      - "${PITWALL_UDP_PORT:-20777}:20777/udp" # F1 telemetry from the game
+    volumes:
+      - ./recordings:/app/recordings:Z
+    networks:
+      - pitwall
+
+networks:
+  pitwall:
+    name: pitwall
+    driver: bridge
