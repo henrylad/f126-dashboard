@@ -74,15 +74,15 @@ let fuel = 50, wear = 0;
 function frame(store: LapStore, c: CarState, offsetZ = 0) {
   const car = {
     idx: 0, isPlayer: true, currentLapInvalid: false, pitStatus: 0, driverStatus: 1, lastLapMs: 0,
-    x: c.lapDistance, z: offsetZ, ...c,
-  } as CarRow;
-  const player = {
-    lapDistance: car.lapDistance, currentLapMs: car.currentLapMs, lap: car.lap, speed: 180, throttle: 1, brake: 0, gear: 7,
+    x: c.lapDistance, z: offsetZ,
+    speed: 180, throttle: 1, brake: 0, gear: 7,
     // Battery drains 1 kJ per metre in the first half of each lap (Boost there), charges in the second half.
-    ersStoreJ: 3e6 - Math.min(car.lapDistance, LEN / 2) * 1000 + Math.max(0, car.lapDistance - LEN / 2) * 1000,
-    ersDeployMode: car.lapDistance < LEN / 2 ? 3 : 1,
-    fuelKg: fuel, tyresWear: [wear, wear, wear, wear], visualCompound: 16, tyreAge: 3,
-  };
+    ersStoreJ: 3e6 - Math.min(c.lapDistance, LEN / 2) * 1000 + Math.max(0, c.lapDistance - LEN / 2) * 1000,
+    ersDeployMode: c.lapDistance < LEN / 2 ? 3 : 1,
+    fuelKg: fuel, tyreWearAvg: wear, compound: 16, tyreAge: 3,
+    ...c,
+  } as CarRow;
+  const player = { lapDistance: car.lapDistance, currentLapMs: car.currentLapMs, lap: car.lap };
   fuel -= 0.001;
   wear += 0.0005;
   store.update({ session: { uid: 'pits', trackLength: LEN, sector2Start: 1000, sector3Start: 2000 }, cars: [car], player } as unknown as Snapshot);
@@ -173,4 +173,19 @@ test('every lap is archived with its kind, sectors and stats', () => {
     assert.ok(lap.stats.fuelUsedKg! > 1 && lap.stats.fuelUsedKg! < 2, `fuel ${lap.stats.fuelUsedKg}`);
     assert.ok(lap.samples.length < 700, 'trace is trimmed for history');
   }
+});
+
+test("other drivers' fastest laps are recorded with the same data", () => {
+  const store = new LapStore();
+  // Player 50 m/s then 55 m/s; rival 52 m/s then 48 m/s → rival's best is lap 1.
+  drive(store, [[50, 55], [52, 48]], 50 + 2500 / 52 + 2500 / 48 + 5);
+  const [rival] = store.driverBests();
+  assert.ok(rival, 'rival best lap recorded');
+  assert.equal(rival.carIdx, 1);
+  assert.equal(rival.lap, 2, 'lap 1 started on the grid unseen; lap 2 at 48 m/s is the first full timed lap');
+  assert.ok(Math.abs(rival.timeMs - 2500 / 48 * 1000) < 40, `rival time ${rival.timeMs}`);
+  assert.ok(rival.samples.length > 100);
+  assert.equal(rival.minis.filter(Boolean).length, MINI_SECTORS);
+  assert.ok(store.laps.every((l) => l.carIdx === 0), 'player laps only in store.laps');
+  assert.ok(!store.driverBests().some((l) => l.carIdx === 0), 'player excluded from driver bests');
 });

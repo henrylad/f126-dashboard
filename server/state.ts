@@ -167,6 +167,8 @@ export class TelemetryState {
       const st = this.status?.[i];
       const m = this.motion?.[i];
       const t2 = this.tel2?.[i];
+      const tel = this.telemetry?.carTelemetryData[i];
+      const dmg = this.damage?.[i];
       rows.push({
         idx: i,
         position: l.carPosition,
@@ -196,6 +198,14 @@ export class TelemetryState {
         aeroMode: t2?.activeAeroMode ?? 0,
         overtakeActive: t2?.overtakeActive ?? false,
         ersPct: st ? Math.min(100, (st.ersStoreEnergy / ERS_MAX_J) * 100) : 0,
+        speed: tel?.speed ?? 0,
+        throttle: tel?.throttle ?? 0,
+        brake: tel?.brake ?? 0,
+        gear: tel?.gear ?? 0,
+        ersStoreJ: st?.ersStoreEnergy ?? 0,
+        ersDeployMode: st?.ersDeployMode ?? 0,
+        fuelKg: st?.fuelInTank ?? 0,
+        tyreWearAvg: dmg ? dmg.tyresWear.reduce((a: number, b: number) => a + b, 0) / 4 : 0,
       });
     }
     return rows.sort((a, b) => a.position - b.position);

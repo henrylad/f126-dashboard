@@ -57,6 +57,16 @@ export interface CarRow {
   aeroMode: number;
   overtakeActive: boolean;
   ersPct: number;
+  // Per-car telemetry, used to record every driver's laps. Zero for online
+  // players whose telemetry is restricted.
+  speed: number;
+  throttle: number;
+  brake: number;
+  gear: number;
+  ersStoreJ: number;
+  ersDeployMode: number;
+  fuelKg: number;
+  tyreWearAvg: number;
 }
 
 export interface PlayerDetail {

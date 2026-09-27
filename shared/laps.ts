@@ -38,6 +38,7 @@ export interface LapStats {
 
 export interface Lap {
   id: number; // unique in the session (lap numbers can repeat after the pits)
+  carIdx: number;
   lap: number;
   kind: LapKind;
   timeMs: number;
@@ -50,6 +51,7 @@ export interface Lap {
 /** What the store knows about the lap besides its samples. */
 export interface LapContext {
   id: number;
+  carIdx: number;
   lap: number;
   kind: LapKind;
   timeMs: number;
@@ -108,6 +110,7 @@ export function summariseLap(samples: Sample[], ctx: LapContext): Lap {
 
   return {
     id: ctx.id,
+    carIdx: ctx.carIdx,
     lap: ctx.lap,
     kind: ctx.kind,
     timeMs: ctx.timeMs,
