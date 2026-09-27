@@ -2,7 +2,10 @@
 // player's per-lap traces, and mini-sector times for every car. The server keeps
 // one so a browser that connects mid-session gets the history; each browser then
 // keeps extending its own copy.
-import type { CarRow, Snapshot } from './types.ts';
+import type { CarRow, PlayerDetail, SessionInfo, Snapshot } from './types.ts';
+import { interpolate, summariseLap, type Lap, type LapKind, type MiniColour, type MiniSector, type Sample } from './laps.ts';
+
+export { interpolate, type Lap, type LapKind, type MiniColour, type MiniSector, type Sample } from './laps.ts';
 
 export const OUTLINE_BINS = 800;
 export const MINI_SECTORS = 25;
@@ -11,6 +14,8 @@ const OUTLINE_MATCH_M = 20;
 const OUTLINE_MAX_CONFIDENCE = 30;
 /** Ignore pit/garage status for this long after a lap starts (status can lag the line). */
 const LAP_START_GRACE_MS = 1500;
+/** Oldest laps are dropped beyond this (the best lap is always kept). */
+const MAX_LAPS = 150;
 
 export interface OutlinePoint { x: number; z: number; n: number; timed: boolean }
 
@@ -27,28 +32,6 @@ function lapStarted(prev: { lap: number; d: number; t: number }, c: CarRow, len:
   const timerReset = c.currentLapMs + 1000 < prev.t;
   const crossedLine = c.lapDistance < 300 && (prev.d < 0 || prev.d > len - 300);
   return timerReset && crossedLine;
-}
-
-export interface Sample {
-  d: number; // lap distance, metres
-  t: number; // lap time, ms
-  speed: number;
-  throttle: number;
-  brake: number;
-  gear: number;
-  ers: number; // ERS store, J
-  mode: number; // ERS deploy mode
-}
-
-/** 0 = not counted (invalid lap), 1 = slower than PB, 2 = personal best, 3 = fastest overall */
-export type MiniColour = 0 | 1 | 2 | 3;
-export interface MiniSector { ms: number; colour: MiniColour }
-
-export interface Lap {
-  lap: number;
-  timeMs: number;
-  samples: Sample[];
-  minis: (MiniSector | null)[];
 }
 
 /** Per-car mini-sector timing state. Best times use 0 for "none yet" (JSON-safe). */
@@ -74,8 +57,18 @@ export interface LapHistory {
   minis: (MiniSector | null)[];
   lastMinis: (MiniSector | null)[];
   playerPrev: { lap: number; d: number; t: number } | null;
-  currentClean: boolean;
+  laps: Lap[];
+  lapSeq: number;
+  lapFlags: LapFlags;
+  lapStart: LapStart;
 }
+
+/** What happened during the current player lap, to classify it when it ends. */
+interface LapFlags { fromLine: boolean; out: boolean; in: boolean; pit: boolean; invalid: boolean; flashback: boolean }
+interface LapStart { fuelKg: number | null; wearPct: number | null }
+
+const freshFlags = (fromLine: boolean): LapFlags => ({ fromLine, out: false, in: false, pit: false, invalid: false, flashback: false });
+const avgWear = (p: PlayerDetail) => p.tyresWear.reduce((a, b) => a + b, 0) / 4;
 
 const emptyMinis = () => new Array<MiniSector | null>(MINI_SECTORS).fill(null);
 
@@ -84,8 +77,11 @@ export class LapStore {
   outline: (OutlinePoint | null)[] = new Array(OUTLINE_BINS).fill(null);
   outlineFilled = 0;
   private playerPrev: { lap: number; d: number; t: number } | null = null;
-  /** Current player lap had no pit, garage, out/in-lap or invalid moments so far. */
-  private currentClean = false;
+  private lapFlags = freshFlags(false);
+  private lapStart: LapStart = { fuelKg: null, wearPct: null };
+  private lapSeq = 0;
+  /** Every completed player lap this session, oldest first. */
+  laps: Lap[] = [];
   current: Sample[] = [];
   currentLap = 0;
   lastLap: Lap | null = null;
@@ -113,27 +109,26 @@ export class LapStore {
     const prev = this.playerPrev;
     this.playerPrev = { lap: row.lap, d: row.lapDistance, t: row.currentLapMs };
     if (!prev || lapStarted(prev, row, len)) {
-      const finished = prev && row.lap === prev.lap + 1;
-      if (finished && this.currentClean && this.current.length > 50) {
-        const done: Lap = { lap: prev.lap, timeMs: row.lastLapMs, samples: this.current, minis: this.lastMinis };
-        // Only a clean timed lap that started from the line is a reference lap.
-        if (done.timeMs > 0 && done.samples[0].d < 200) {
-          this.lastLap = done;
-          if (!this.bestLap || done.timeMs < this.bestLap.timeMs) this.bestLap = done;
-        }
-      }
+      if (prev && this.current.length > 20) this.archiveLap(prev, row, p, session);
       this.current = [];
       this.currentLap = row.lap;
       // A lap only counts if we saw it start at the line.
-      this.currentClean = !!prev;
+      this.lapFlags = freshFlags(!!prev);
+      this.lapStart = prev ? { fuelKg: p.fuelKg, wearPct: avgWear(p) } : { fuelKg: null, wearPct: null };
     }
-    if (row.currentLapMs > LAP_START_GRACE_MS && (!onTimedLap(row) || row.currentLapInvalid)) this.currentClean = false;
+    if (row.currentLapMs > LAP_START_GRACE_MS) {
+      const f = this.lapFlags;
+      if (row.pitStatus !== 0 || row.driverStatus === 0) f.pit = true;
+      if (row.driverStatus === 3) f.out = true;
+      if (row.driverStatus === 2) f.in = true;
+      if (row.currentLapInvalid) f.invalid = true;
+    }
     if (p.lapDistance < 0) return;
     const last = this.current.at(-1);
     if (last && p.lapDistance < last.d - 50) {
       // Flashback / rewind: drop samples past the new position.
       this.current = this.current.filter((x) => x.d <= p.lapDistance);
-      this.currentClean = false;
+      this.lapFlags.flashback = true;
     }
     if (!last || p.lapDistance > last.d) {
       this.current.push({
@@ -142,6 +137,41 @@ export class LapStore {
         ers: p.ersStoreJ, mode: p.ersDeployMode,
       });
     }
+  }
+
+  private archiveLap(prev: { lap: number; t: number }, row: CarRow, p: PlayerDetail, session: SessionInfo) {
+    const f = this.lapFlags;
+    // Crossing the line normally increments the lap; a timer reset without it follows the pits.
+    const finished = row.lap === prev.lap + 1;
+    const kind: LapKind = f.out ? 'out'
+      : f.in ? 'in'
+      : f.pit ? 'pit'
+      : !f.fromLine ? 'partial'
+      : f.invalid || f.flashback || !finished || this.current[0].d >= 200 ? 'invalid'
+      : 'timed';
+    const lap = summariseLap(this.current, {
+      id: ++this.lapSeq,
+      lap: prev.lap,
+      kind,
+      timeMs: finished ? row.lastLapMs : Math.round(prev.t),
+      trackLength: session.trackLength,
+      sector2Start: session.sector2Start,
+      sector3Start: session.sector3Start,
+      minis: this.lastMinis,
+      fuelStartKg: this.lapStart.fuelKg,
+      fuelEndKg: p.fuelKg,
+      wearStartPct: this.lapStart.wearPct,
+      wearEndPct: avgWear(p),
+      compound: p.visualCompound,
+      tyreAge: p.tyreAge,
+    });
+    this.laps.push(lap);
+    if (this.laps.length > MAX_LAPS) {
+      const drop = this.laps.findIndex((l) => l.id !== this.bestLap?.id);
+      this.laps.splice(drop, 1);
+    }
+    this.lastLap = lap;
+    if (kind === 'timed' && lap.timeMs > 0 && (!this.bestLap || lap.timeMs < this.bestLap.timeMs)) this.bestLap = lap;
   }
 
   /**
@@ -269,8 +299,8 @@ export class LapStore {
   }
 
   toHistory(): LapHistory {
-    const { sessionUid, outline, current, currentLap, lastLap, bestLap, cars, overallBest, minis, lastMinis, playerPrev, currentClean } = this;
-    return { type: 'history', sessionUid, outline, current, currentLap, lastLap, bestLap, cars, overallBest, minis, lastMinis, playerPrev, currentClean };
+    const { sessionUid, outline, current, currentLap, lastLap, bestLap, cars, overallBest, minis, lastMinis, playerPrev, laps, lapSeq, lapFlags, lapStart } = this;
+    return { type: 'history', sessionUid, outline, current, currentLap, lastLap, bestLap, cars, overallBest, minis, lastMinis, playerPrev, laps, lapSeq, lapFlags, lapStart };
   }
 
   loadHistory(h: LapHistory) {
@@ -278,7 +308,10 @@ export class LapStore {
     this.outline = h.outline;
     this.outlineFilled = h.outline.filter(Boolean).length;
     this.playerPrev = h.playerPrev;
-    this.currentClean = h.currentClean;
+    this.laps = h.laps;
+    this.lapSeq = h.lapSeq;
+    this.lapFlags = h.lapFlags;
+    this.lapStart = h.lapStart;
     this.current = h.current;
     this.currentLap = h.currentLap;
     this.lastLap = h.lastLap;
@@ -294,7 +327,10 @@ export class LapStore {
     this.outline = new Array(OUTLINE_BINS).fill(null);
     this.outlineFilled = 0;
     this.playerPrev = null;
-    this.currentClean = false;
+    this.lapFlags = freshFlags(false);
+    this.lapStart = { fuelKg: null, wearPct: null };
+    this.lapSeq = 0;
+    this.laps = [];
     this.current = [];
     this.currentLap = 0;
     this.lastLap = this.bestLap = null;
@@ -305,14 +341,3 @@ export class LapStore {
   }
 }
 
-export function interpolate(samples: Sample[], d: number, key: keyof Sample): number | null {
-  if (!samples.length || d < samples[0].d || d > samples[samples.length - 1].d) return null;
-  let lo = 0, hi = samples.length - 1;
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    if (samples[mid].d <= d) lo = mid; else hi = mid;
-  }
-  const a = samples[lo], b = samples[hi];
-  const f = b.d === a.d ? 0 : (d - a.d) / (b.d - a.d);
-  return a[key] + (b[key] - a[key]) * f;
-}

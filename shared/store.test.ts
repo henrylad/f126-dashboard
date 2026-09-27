@@ -68,14 +68,24 @@ test('a slower lap shows yellow, a PB that is not overall shows green', () => {
 
 type CarState = Partial<CarRow> & { lap: number; lapDistance: number; currentLapMs: number };
 
+let fuel = 50, wear = 0;
+
 /** Player-only session on a straight "track" along x, so position = lap distance. */
 function frame(store: LapStore, c: CarState, offsetZ = 0) {
   const car = {
     idx: 0, isPlayer: true, currentLapInvalid: false, pitStatus: 0, driverStatus: 1, lastLapMs: 0,
     x: c.lapDistance, z: offsetZ, ...c,
   } as CarRow;
-  const player = { lapDistance: car.lapDistance, currentLapMs: car.currentLapMs, lap: car.lap, speed: 200, throttle: 1, brake: 0, gear: 7, ersStoreJ: 3e6, ersDeployMode: 1, overtakeActive: false };
-  store.update({ session: { uid: 'pits', trackLength: LEN }, cars: [car], player } as unknown as Snapshot);
+  const player = {
+    lapDistance: car.lapDistance, currentLapMs: car.currentLapMs, lap: car.lap, speed: 180, throttle: 1, brake: 0, gear: 7,
+    // Battery drains 1 kJ per metre in the first half of each lap (Boost there), charges in the second half.
+    ersStoreJ: 3e6 - Math.min(car.lapDistance, LEN / 2) * 1000 + Math.max(0, car.lapDistance - LEN / 2) * 1000,
+    ersDeployMode: car.lapDistance < LEN / 2 ? 3 : 1,
+    fuelKg: fuel, tyresWear: [wear, wear, wear, wear], visualCompound: 16, tyreAge: 3,
+  };
+  fuel -= 0.001;
+  wear += 0.0005;
+  store.update({ session: { uid: 'pits', trackLength: LEN, sector2Start: 1000, sector3Start: 2000 }, cars: [car], player } as unknown as Snapshot);
 }
 
 /** Garage → pit lane → out-lap → line crossed with a timer reset (same lap number) → 2 flying laps → in-lap. */
@@ -142,4 +152,25 @@ test('with only one flying lap before pitting, the pit entry road still cannot b
   pitScenario(store, 1);
   const off = store.outline.filter((p) => p && Math.abs(p.z) > 5);
   assert.equal(off.length, 0, `${off.length} outline points pulled off the track`);
+});
+
+test('every lap is archived with its kind, sectors and stats', () => {
+  const store = new LapStore();
+  pitScenario(store);
+  const kinds = store.laps.map((l) => l.kind);
+  assert.deepEqual(kinds, ['out', 'timed', 'timed'], 'out-lap from the garage, then two flying laps');
+  const [, fly1, fly2] = store.laps;
+  assert.notEqual(fly1.id, fly2.id);
+  // 50 m/s with sectors at 1000 m and 2000 m → 20 s, 20 s, 10 s.
+  for (const lap of [fly1, fly2]) {
+    assert.equal(lap.timeMs, 50_000);
+    const [s1, s2, s3] = lap.sectors;
+    assert.ok(Math.abs(s1! - 20_000) < 40 && Math.abs(s2! - 20_000) < 40 && Math.abs(s3! - 10_000) < 40, `sectors ${lap.sectors}`);
+    assert.ok(Math.abs(lap.stats.boostPct - 50) < 1, `boost ${lap.stats.boostPct}`);
+    assert.ok(Math.abs(lap.stats.deployedJ - 1.25e6) < 2e4, `deployed ${lap.stats.deployedJ}`);
+    assert.ok(Math.abs(lap.stats.harvestedJ - 1.25e6) < 2e4, `harvested ${lap.stats.harvestedJ}`);
+    assert.ok(Math.abs(lap.stats.avgSpeed! - 180) < 0.5);
+    assert.ok(lap.stats.fuelUsedKg! > 1 && lap.stats.fuelUsedKg! < 2, `fuel ${lap.stats.fuelUsedKg}`);
+    assert.ok(lap.samples.length < 700, 'trace is trimmed for history');
+  }
 });
