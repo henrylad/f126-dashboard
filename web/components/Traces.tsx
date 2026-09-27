@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Snapshot } from '../../shared/types.ts';
+import { ERS_MAX_J, type Snapshot } from '../../shared/types.ts';
 import { MINI_SECTORS, interpolate, type LapStore, type Sample } from '../../shared/store.ts';
 import { MINI_COLOURS, MINI_LABELS, MINI_PENDING } from '../../shared/meta.ts';
 import { delta as fmtDelta, lapTime } from '../format.ts';
@@ -9,6 +9,8 @@ const C = {
   ref: '#8d98c7',
   throttle: '#6e8bff',
   brake: '#ff3355',
+  gear: '#c9d1ea',
+  battery: '#35c4e0',
   faster: '#2fd27a',
   slower: '#ff3355',
   deltaLine: '#eef1fa',
@@ -24,7 +26,15 @@ const C = {
 const STRIP_H = 14;
 const GAP = 18;
 
-type Key = 'speed' | 'throttle' | 'brake';
+type Key = 'speed' | 'throttle' | 'brake' | 'gear' | 'ers';
+
+const CHANNELS: Record<Key, { max: number; ticks: number[]; fmt: (v: number) => string; colour: string; fill: boolean; ref: boolean; step?: boolean }> = {
+  speed: { max: 360, ticks: [0, 100, 200, 300], fmt: String, colour: C.current, fill: false, ref: true },
+  throttle: { max: 1, ticks: [0, 1], fmt: (v) => `${v * 100}`, colour: C.throttle, fill: true, ref: false },
+  brake: { max: 1, ticks: [0, 1], fmt: (v) => `${v * 100}`, colour: C.brake, fill: true, ref: false },
+  gear: { max: 8, ticks: [2, 4, 6, 8], fmt: String, colour: C.gear, fill: false, ref: false, step: true },
+  ers: { max: ERS_MAX_J, ticks: [0, ERS_MAX_J / 2, ERS_MAX_J], fmt: (v) => `${Math.round((v / ERS_MAX_J) * 100)}`, colour: C.battery, fill: true, ref: true },
+};
 interface Panel { key: Key | 'delta'; label: string; top: number; h: number }
 
 export function Traces({ snap, store }: { snap: Snapshot; store: LapStore }) {
@@ -49,13 +59,15 @@ export function Traces({ snap, store }: { snap: Snapshot; store: LapStore }) {
   // Layout: mini-sector strip, delta, speed, throttle, brake — all on one distance axis.
   const stripTop = margin.t;
   const plotTop = stripTop + STRIP_H + 12;
-  const plotH = size.h - plotTop - margin.b - GAP * 3;
   const shares: [Panel['key'], string, number][] = [
-    ['delta', 'Delta to best lap s · above zero = slower', 0.24],
-    ['speed', 'Speed km/h', 0.44],
-    ['throttle', 'Throttle %', 0.16],
-    ['brake', 'Brake %', 0.16],
+    ['delta', 'Delta to best lap s · above zero = slower', 0.2],
+    ['speed', 'Speed km/h', 0.3],
+    ['throttle', 'Throttle %', 0.11],
+    ['brake', 'Brake %', 0.11],
+    ['gear', 'Gear', 0.12],
+    ['ers', 'Battery (ERS store) %', 0.16],
   ];
+  const plotH = size.h - plotTop - margin.b - GAP * (shares.length - 1);
   const panels: Panel[] = [];
   let y = plotTop;
   for (const [key, label, share] of shares) {
@@ -186,23 +198,30 @@ export function Traces({ snap, store }: { snap: Snapshot; store: LapStore }) {
     }
 
     function drawChannel(g: CanvasRenderingContext2D, p: Panel & { key: Key }) {
-      const max = p.key === 'speed' ? 360 : 1;
-      const yOf = (v: number) => p.top + p.h - (v / max) * p.h;
+      const ch = CHANNELS[p.key];
+      const yOf = (v: number) => p.top + p.h - (v / ch.max) * p.h;
       g.strokeStyle = C.grid;
       g.lineWidth = 1;
       g.fillStyle = C.label;
       g.textAlign = 'right';
       g.textBaseline = 'middle';
-      const ticks = p.key === 'speed' ? [0, 100, 200, 300] : [0, 1];
-      for (const t of ticks) {
+      for (const t of ch.ticks) {
         const yy = Math.round(yOf(t)) + 0.5;
         g.beginPath(); g.moveTo(margin.l, yy); g.lineTo(margin.l + plotW, yy); g.stroke();
-        g.fillText(p.key === 'speed' ? String(t) : `${t * 100}`, margin.l - 6, yy);
+        g.fillText(ch.fmt(t), margin.l - 6, yy);
       }
       const line = (samples: Sample[], colour: string, dashed: boolean, fill: boolean) => {
         if (samples.length < 2) return;
         g.beginPath();
-        samples.forEach((sm, i) => (i ? g.lineTo(xOf(sm.d), yOf(sm[p.key])) : g.moveTo(xOf(sm.d), yOf(sm[p.key]))));
+        samples.forEach((sm, i) => {
+          const x = xOf(sm.d), yy = yOf(sm[p.key] ?? 0);
+          if (!i) g.moveTo(x, yy);
+          else {
+            // Gears change in steps, not ramps.
+            if (ch.step) g.lineTo(x, yOf(samples[i - 1][p.key] ?? 0));
+            g.lineTo(x, yy);
+          }
+        });
         g.setLineDash(dashed ? [5, 4] : []);
         g.strokeStyle = colour;
         g.lineWidth = 2;
@@ -219,9 +238,8 @@ export function Traces({ snap, store }: { snap: Snapshot; store: LapStore }) {
           g.globalAlpha = 1;
         }
       };
-      if (ref && p.key === 'speed') line(ref.samples, C.ref, true, false);
-      const colour = p.key === 'speed' ? C.current : p.key === 'throttle' ? C.throttle : C.brake;
-      line(store.current, colour, false, p.key !== 'speed');
+      if (ref && ch.ref) line(ref.samples, C.ref, true, false);
+      line(store.current, ch.colour, false, ch.fill);
       const cur = store.current.at(-1);
       if (cur && p.key === 'speed') {
         g.fillStyle = C.current;
@@ -253,6 +271,8 @@ export function Traces({ snap, store }: { snap: Snapshot; store: LapStore }) {
       throttle: interpolate(store.current, hoverD, 'throttle'),
       brake: interpolate(store.current, hoverD, 'brake'),
       gear: interpolate(store.current, hoverD, 'gear'),
+      battery: interpolate(store.current, hoverD, 'ers'),
+      refBattery: ref ? interpolate(ref.samples, hoverD, 'ers') : null,
     };
   })();
 
@@ -265,6 +285,8 @@ export function Traces({ snap, store }: { snap: Snapshot; store: LapStore }) {
           <span><i className="dash" />Best lap {ref ? lapTime(ref.timeMs) : '(after a full lap)'}</span>
           <span><i style={{ background: C.throttle }} />Throttle</span>
           <span><i style={{ background: C.brake }} />Brake</span>
+          <span><i style={{ background: C.gear }} />Gear</span>
+          <span><i style={{ background: C.battery }} />Battery</span>
           <span><i style={{ background: C.aeroEdge }} />Aero zone (axis strip)</span>
         </span>
         {deltaMs !== null && (
@@ -281,7 +303,7 @@ export function Traces({ snap, store }: { snap: Snapshot; store: LapStore }) {
         <span><i style={{ background: MINI_COLOURS[1], opacity: 0.3, height: 8 }} />Last lap (not reached yet)</span>
       </div>
       <div className="trace-canvas" onPointerMove={onMove} onPointerLeave={() => setHoverD(null)}>
-        <canvas ref={canvas} role="img" aria-label="Mini sectors, delta to best lap, speed, throttle and brake against lap distance" />
+        <canvas ref={canvas} role="img" aria-label="Mini sectors, delta to best lap, speed, throttle, brake, gear and battery against lap distance" />
         {tip && (
           <div className="tooltip" style={{ left: tip.left, top: 8 }}>
             <div className="row"><span>Distance</span><b className="num">{Math.round(hoverD!)} m</b></div>
@@ -299,7 +321,9 @@ export function Traces({ snap, store }: { snap: Snapshot; store: LapStore }) {
             {tip.refSpeed !== null && <div className="row"><span><i className="sw" style={{ background: C.ref }} />Best lap</span><b className="num">{Math.round(tip.refSpeed)} km/h</b></div>}
             <div className="row"><span><i className="sw" style={{ background: C.throttle }} />Throttle</span><b className="num">{tip.throttle === null ? '—' : `${Math.round(tip.throttle * 100)}%`}</b></div>
             <div className="row"><span><i className="sw" style={{ background: C.brake }} />Brake</span><b className="num">{tip.brake === null ? '—' : `${Math.round(tip.brake * 100)}%`}</b></div>
-            <div className="row"><span>Gear</span><b className="num">{tip.gear === null ? '—' : Math.round(tip.gear)}</b></div>
+            <div className="row"><span><i className="sw" style={{ background: C.gear }} />Gear</span><b className="num">{tip.gear === null ? '—' : Math.round(tip.gear)}</b></div>
+            <div className="row"><span><i className="sw" style={{ background: C.battery }} />Battery</span><b className="num">{tip.battery === null ? '—' : `${Math.round((tip.battery / ERS_MAX_J) * 100)}%`}</b></div>
+            {tip.refBattery !== null && <div className="row"><span><i className="sw" style={{ background: C.ref }} />Best lap</span><b className="num">{Math.round((tip.refBattery / ERS_MAX_J) * 100)}%</b></div>}
           </div>
         )}
       </div>

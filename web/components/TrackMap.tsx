@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import type { Snapshot } from '../../shared/types.ts';
-import { MINI_COLOURS, MINI_LABELS, trackName } from '../../shared/meta.ts';
+import { ENERGY, MINI_COLOURS, MINI_LABELS, trackName, type EnergyKey } from '../../shared/meta.ts';
 import { MINI_SECTORS, OUTLINE_BINS, type LapStore } from '../../shared/store.ts';
 import { code } from '../format.ts';
+import { coveredBins, energyBins } from '../energy.ts';
 
 type Pt = { x: number; z: number };
 
@@ -19,7 +20,17 @@ function segment(outline: (Pt | null)[], from: number, to: number): string {
 }
 
 export function TrackMap({ snap, store }: { snap: Snapshot; store: LapStore }) {
-  const [view, setView] = useState<'minis' | 'aero'>('minis');
+  const [view, setView] = useState<'minis' | 'energy' | 'aero'>('minis');
+  const [shown, setShown] = useState<Set<EnergyKey>>(() => new Set(ENERGY.map((e) => e.key)));
+  const toggleEnergy = (k: EnergyKey, solo: boolean) => setShown((prev) => {
+    // Click isolates one category (click again to show all); shift-click adds/removes.
+    if (!solo) {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    }
+    return prev.size === 1 && prev.has(k) ? new Set(ENERGY.map((e) => e.key)) : new Set([k]);
+  });
   const s = snap.session!;
   const outline = store.outline;
   const known = outline.filter(Boolean) as Pt[];
@@ -51,13 +62,17 @@ export function TrackMap({ snap, store }: { snap: Snapshot; store: LapStore }) {
         <span className="aside legend">
           <span className="seg" role="group" aria-label="Map colouring">
             <button className={view === 'minis' ? 'on' : ''} onClick={() => setView('minis')}>Mini sectors</button>
+            <button className={view === 'energy' ? 'on' : ''} onClick={() => setView('energy')}>Energy</button>
             <button className={view === 'aero' ? 'on' : ''} onClick={() => setView('aero')}>Aero zones</button>
           </span>
-          {view === 'minis' ? (
-            [3, 2, 1].map((c) => <span key={c}><i style={{ background: MINI_COLOURS[c] }} />{MINI_LABELS[c]}</span>)
-          ) : (
-            <span><i style={{ background: 'var(--yellow)' }} />Active aero zone</span>
-          )}
+          {view === 'minis' && [3, 2, 1].map((c) => <span key={c}><i style={{ background: MINI_COLOURS[c] }} />{MINI_LABELS[c]}</span>)}
+          {view === 'energy' && ENERGY.map((e) => (
+            <button key={e.key} className={`chip${shown.has(e.key) ? ' on' : ''}`} aria-pressed={shown.has(e.key)}
+              title="Click to show only this · shift-click to add or remove" onClick={(ev) => toggleEnergy(e.key, !ev.shiftKey)}>
+              <i style={{ background: e.colour }} />{e.label}
+            </button>
+          ))}
+          {view === 'aero' && <span><i style={{ background: 'var(--yellow)' }} />Active aero zone</span>}
           {view === 'aero' && s.drsZones.length > 0 && <span><i style={{ background: 'var(--blue-soft)' }} />DRS zone</span>}
           {yellowZones.length > 0 && <span><i style={{ background: 'var(--red-soft)' }} />Yellow flag</span>}
         </span>
@@ -80,6 +95,11 @@ export function TrackMap({ snap, store }: { snap: Snapshot; store: LapStore }) {
                   stroke={MINI_COLOURS[m.colour]} strokeOpacity={store.minis[k] ? 1 : 0.35} strokeWidth={5} vectorEffect="non-scaling-stroke" />
               );
             })}
+            {view === 'energy' && energyRuns(store, len).map((r, i) => shown.has(r.key) && (
+              <polyline key={`e${i}`} points={segment(outline, r.from / OUTLINE_BINS, r.to / OUTLINE_BINS)} fill="none"
+                stroke={ENERGY.find((e) => e.key === r.key)!.colour} strokeOpacity={r.faded ? 0.35 : 1}
+                strokeWidth={5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            ))}
             {view === 'aero' && s.aeroZonesFull.concat(s.aeroZonesPartial).map((z, i) => (
               <polyline key={`a${i}`} points={segment(outline, z.start, z.end)} fill="none" stroke="var(--yellow)" strokeOpacity={0.85} strokeWidth={4} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
             ))}
@@ -113,4 +133,23 @@ export function TrackMap({ snap, store }: { snap: Snapshot; store: LapStore }) {
       </div>
     </section>
   );
+}
+
+/**
+ * Runs of equal energy state along the lap: this lap where driven so far,
+ * the rest from last lap (faded).
+ */
+function energyRuns(store: LapStore, len: number) {
+  const cur = energyBins(store.current, len, OUTLINE_BINS);
+  const covered = coveredBins(store.current, len, OUTLINE_BINS);
+  const last = store.lastLap ? energyBins(store.lastLap.samples, len, OUTLINE_BINS) : null;
+  const runs: { key: EnergyKey; faded: boolean; from: number; to: number }[] = [];
+  for (let b = 0; b < OUTLINE_BINS; b++) {
+    const faded = !covered[b];
+    const key = faded ? last?.[b] ?? null : cur[b];
+    const prev = runs.at(-1);
+    if (key && prev && prev.key === key && prev.faded === faded && prev.to === b) prev.to = b + 1;
+    else if (key) runs.push({ key, faded, from: b, to: b + 1 });
+  }
+  return runs;
 }

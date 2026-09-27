@@ -95,3 +95,12 @@ export const FLAG_COLOURS: Record<number, string> = { 1: '#3DD66B', 2: '#2F8BFF'
 export const MINI_COLOURS = ['#58638f', '#ffc906', '#2fd27a', '#b44dff'];
 export const MINI_LABELS = ['Not counted (invalid lap)', 'Slower than your best', 'Personal best', 'Fastest overall'];
 export const MINI_PENDING = '#1e2a5a';
+
+// Energy map categories (validated for colour-blind separation on the dark surface).
+export const ENERGY = [
+  { key: 'harvest', label: 'Harvesting', colour: '#4D8DFF' },
+  { key: 'medium', label: 'Deploy · Medium', colour: '#2FD27A' },
+  { key: 'hotlap', label: 'Deploy · Hotlap', colour: '#FF9F1A' },
+  { key: 'overtake', label: 'Overtake', colour: '#FF3355' },
+] as const;
+export type EnergyKey = (typeof ENERGY)[number]['key'];
