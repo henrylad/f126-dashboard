@@ -38,7 +38,6 @@ export interface Sample {
   gear: number;
   ers: number; // ERS store, J
   mode: number; // ERS deploy mode
-  ot: number; // overtake mode active (0/1)
 }
 
 /** 0 = not counted (invalid lap), 1 = slower than PB, 2 = personal best, 3 = fastest overall */
@@ -140,7 +139,7 @@ export class LapStore {
       this.current.push({
         d: p.lapDistance, t: p.currentLapMs, speed: p.speed,
         throttle: p.throttle, brake: p.brake, gear: p.gear,
-        ers: p.ersStoreJ, mode: p.ersDeployMode, ot: p.overtakeActive ? 1 : 0,
+        ers: p.ersStoreJ, mode: p.ersDeployMode,
       });
     }
   }

@@ -85,7 +85,7 @@ export const isRace = (t: number) => t >= 15 && t <= 17;
 
 export const WEATHER = ['Clear', 'Light cloud', 'Overcast', 'Light rain', 'Heavy rain', 'Storm'];
 export const SAFETY_CAR = ['', 'Safety Car', 'Virtual Safety Car', 'Formation Lap'];
-export const ERS_MODES = ['None', 'Medium', 'Hotlap', 'Overtake'];
+export const ERS_MODES = ['None', 'Medium', 'Hotlap', 'Boost'];
 export const FUEL_MIX = ['Lean', 'Standard', 'Rich', 'Max'];
 export const PIT_STATUS = ['', 'PIT', 'PIT'];
 export const DRIVER_STATUS = ['Garage', 'Flying lap', 'In lap', 'Out lap', 'On track'];
@@ -101,6 +101,6 @@ export const ENERGY = [
   { key: 'harvest', label: 'Harvesting', colour: '#4D8DFF' },
   { key: 'medium', label: 'Deploy · Medium', colour: '#2FD27A' },
   { key: 'hotlap', label: 'Deploy · Hotlap', colour: '#FF9F1A' },
-  { key: 'overtake', label: 'Overtake', colour: '#FF3355' },
+  { key: 'boost', label: 'Boost', colour: '#FF3355' },
 ] as const;
 export type EnergyKey = (typeof ENERGY)[number]['key'];

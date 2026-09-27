@@ -5,14 +5,14 @@ import type { EnergyKey } from '../shared/meta.ts';
 const NEUTRAL_J = 500;
 
 /**
- * What the battery was doing at each sample. Harvest vs deploy comes from the
- * store actually rising or falling; the deploy mode only labels the deploy.
+ * What the battery was doing at each sample. Harvesting comes from the store
+ * actually rising; otherwise Boost (deploy mode 3) shows wherever it was
+ * selected, and Medium/Hotlap where the store drained in that mode.
  */
 export function energyState(prev: Sample | undefined, s: Sample): EnergyKey | null {
-  if (s.ot || s.mode === 3) return 'overtake';
-  if (!prev) return null;
-  const dE = s.ers - prev.ers;
+  const dE = prev ? s.ers - prev.ers : 0;
   if (dE > NEUTRAL_J) return 'harvest';
+  if (s.mode === 3) return 'boost';
   if (dE < -NEUTRAL_J) return s.mode === 2 ? 'hotlap' : 'medium';
   return null;
 }
