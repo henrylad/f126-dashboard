@@ -1,4 +1,5 @@
 node_modules
 dist
 *.f1rec
-recordings/
+recordings/*
+!recordings/.gitkeep
