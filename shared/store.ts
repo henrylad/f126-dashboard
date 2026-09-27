@@ -6,6 +6,28 @@ import type { CarRow, Snapshot } from './types.ts';
 
 export const OUTLINE_BINS = 800;
 export const MINI_SECTORS = 25;
+/** A new position this close to a bin's point confirms it; further away counts against it. */
+const OUTLINE_MATCH_M = 20;
+const OUTLINE_MAX_CONFIDENCE = 30;
+/** Ignore pit/garage status for this long after a lap starts (status can lag the line). */
+const LAP_START_GRACE_MS = 1500;
+
+export interface OutlinePoint { x: number; z: number; n: number; timed: boolean }
+
+/** On a timed lap on track — not in the garage, pit lane, an out-lap or an in-lap. */
+const onTimedLap = (c: CarRow) => c.pitStatus === 0 && (c.driverStatus === 1 || c.driverStatus === 4);
+
+/**
+ * Whether the car started a new lap since the previous update. The lap number
+ * normally increments at the line, but after leaving the pits the game can
+ * restart the lap timer at the line without changing the lap number.
+ */
+function lapStarted(prev: { lap: number; d: number; t: number }, c: CarRow, len: number): boolean {
+  if (c.lap !== prev.lap) return true;
+  const timerReset = c.currentLapMs + 1000 < prev.t;
+  const crossedLine = c.lapDistance < 300 && (prev.d < 0 || prev.d > len - 300);
+  return timerReset && crossedLine;
+}
 
 export interface Sample {
   d: number; // lap distance, metres
@@ -43,7 +65,7 @@ interface CarMini {
 export interface LapHistory {
   type: 'history';
   sessionUid: string;
-  outline: ({ x: number; z: number } | null)[];
+  outline: (OutlinePoint | null)[];
   current: Sample[];
   currentLap: number;
   lastLap: Lap | null;
@@ -52,14 +74,19 @@ export interface LapHistory {
   overallBest: number[];
   minis: (MiniSector | null)[];
   lastMinis: (MiniSector | null)[];
+  playerPrev: { lap: number; d: number; t: number } | null;
+  currentClean: boolean;
 }
 
 const emptyMinis = () => new Array<MiniSector | null>(MINI_SECTORS).fill(null);
 
 export class LapStore {
   sessionUid = '';
-  outline: ({ x: number; z: number } | null)[] = new Array(OUTLINE_BINS).fill(null);
+  outline: (OutlinePoint | null)[] = new Array(OUTLINE_BINS).fill(null);
   outlineFilled = 0;
+  private playerPrev: { lap: number; d: number; t: number } | null = null;
+  /** Current player lap had no pit, garage, out/in-lap or invalid moments so far. */
+  private currentClean = false;
   current: Sample[] = [];
   currentLap = 0;
   lastLap: Lap | null = null;
@@ -78,33 +105,36 @@ export class LapStore {
 
     for (const car of s.cars) {
       this.timeMiniSectors(car, len);
-      if (car.pitStatus !== 0 || car.lapDistance < 0 || (car.x === 0 && car.z === 0)) continue;
-      const bin = Math.floor((car.lapDistance / len) * OUTLINE_BINS);
-      if (bin < 0 || bin >= OUTLINE_BINS) continue;
-      if (!this.outline[bin]) this.outlineFilled++;
-      this.outline[bin] = { x: car.x, z: car.z };
+      this.learnOutline(car, len);
     }
 
     const p = s.player;
-    if (!p || p.lapDistance < 0) return;
-    if (p.lap !== this.currentLap) {
-      if (this.currentLap && this.current.length > 50) {
-        const row = s.cars.find((c) => c.isPlayer);
-        const timeMs = row?.lastLapMs ?? 0;
-        const done: Lap = { lap: this.currentLap, timeMs, samples: this.current, minis: this.lastMinis };
-        // Only a lap that started from the line counts as a reference lap.
-        if (timeMs > 0 && done.samples[0].d < 200) {
+    const row = s.cars.find((c) => c.isPlayer);
+    if (!p || !row) return;
+    const prev = this.playerPrev;
+    this.playerPrev = { lap: row.lap, d: row.lapDistance, t: row.currentLapMs };
+    if (!prev || lapStarted(prev, row, len)) {
+      const finished = prev && row.lap === prev.lap + 1;
+      if (finished && this.currentClean && this.current.length > 50) {
+        const done: Lap = { lap: prev.lap, timeMs: row.lastLapMs, samples: this.current, minis: this.lastMinis };
+        // Only a clean timed lap that started from the line is a reference lap.
+        if (done.timeMs > 0 && done.samples[0].d < 200) {
           this.lastLap = done;
-          if (!this.bestLap || timeMs < this.bestLap.timeMs) this.bestLap = done;
+          if (!this.bestLap || done.timeMs < this.bestLap.timeMs) this.bestLap = done;
         }
       }
       this.current = [];
-      this.currentLap = p.lap;
+      this.currentLap = row.lap;
+      // A lap only counts if we saw it start at the line.
+      this.currentClean = !!prev;
     }
+    if (row.currentLapMs > LAP_START_GRACE_MS && (!onTimedLap(row) || row.currentLapInvalid)) this.currentClean = false;
+    if (p.lapDistance < 0) return;
     const last = this.current.at(-1);
     if (last && p.lapDistance < last.d - 50) {
       // Flashback / rewind: drop samples past the new position.
       this.current = this.current.filter((x) => x.d <= p.lapDistance);
+      this.currentClean = false;
     }
     if (!last || p.lapDistance > last.d) {
       this.current.push({
@@ -112,6 +142,35 @@ export class LapStore {
         throttle: p.throttle, brake: p.brake, gear: p.gear,
         ers: p.ersStoreJ, mode: p.ersDeployMode, ot: p.overtakeActive ? 1 : 0,
       });
+    }
+  }
+
+  /**
+   * Learns the circuit from car positions. Points from timed laps are trusted:
+   * out/in-lap data (pit entry and exit roads) can only fill empty bins, never
+   * change a timed-lap point, and timed-lap data always replaces it. Timed points
+   * keep a confidence count so a single stray pass can't bend the track either.
+   */
+  private learnOutline(car: CarRow, len: number) {
+    if (car.pitStatus !== 0 || car.driverStatus === 0 || car.lapDistance < 0 || (car.x === 0 && car.z === 0)) return;
+    const bin = Math.floor((car.lapDistance / len) * OUTLINE_BINS);
+    if (bin < 0 || bin >= OUTLINE_BINS) return;
+    const timed = onTimedLap(car);
+    const cur = this.outline[bin];
+    const fresh = { x: car.x, z: car.z, n: 1, timed };
+    if (!cur) {
+      this.outline[bin] = fresh;
+      this.outlineFilled++;
+    } else if (timed && !cur.timed) {
+      this.outline[bin] = fresh;
+    } else if (timed !== cur.timed) {
+      // untimed data never touches a timed point
+    } else if (Math.hypot(car.x - cur.x, car.z - cur.z) <= OUTLINE_MATCH_M) {
+      cur.n = Math.min(cur.n + 1, OUTLINE_MAX_CONFIDENCE);
+      cur.x += (car.x - cur.x) / cur.n;
+      cur.z += (car.z - cur.z) / cur.n;
+    } else if (timed && --cur.n <= 0) {
+      this.outline[bin] = fresh;
     }
   }
 
@@ -131,8 +190,9 @@ export class LapStore {
       return;
     }
 
-    if (car.lap !== m.lap) {
+    if (lapStarted({ lap: m.lap, d: m.lastD, t: m.lastT }, car, len)) {
       const nextLap = car.lap === m.lap + 1;
+      const atLine = nextLap || car.lap === m.lap; // same lap number = timer reset at the line
       const lastStart = m.startT[MINI_SECTORS - 1];
       if (nextLap && lastStart !== null && car.lastLapMs > 0) {
         this.completeMini(car, m, MINI_SECTORS - 1, car.lastLapMs - lastStart);
@@ -144,7 +204,7 @@ export class LapStore {
       m.lap = car.lap;
       m.invalid = false;
       m.startT = new Array(MINI_SECTORS).fill(null);
-      if (nextLap) m.startT[0] = 0;
+      if (atLine) m.startT[0] = 0;
       // Treat the line itself as the previous sample for the crossing scan below.
       m.lastD = 0;
       m.lastT = 0;
@@ -157,7 +217,8 @@ export class LapStore {
       return;
     }
 
-    if (car.currentLapInvalid) m.invalid = true;
+    // Out-laps, in-laps and pit/garage time don't count towards mini-sector bests.
+    if (car.currentLapInvalid || (car.currentLapMs > LAP_START_GRACE_MS && !onTimedLap(car))) m.invalid = true;
     const d = car.lapDistance, t = car.currentLapMs;
     if (d > m.lastD) {
       for (let k = Math.max(1, Math.floor(m.lastD / seg) + 1); k < MINI_SECTORS && k * seg <= d; k++) {
@@ -209,14 +270,16 @@ export class LapStore {
   }
 
   toHistory(): LapHistory {
-    const { sessionUid, outline, current, currentLap, lastLap, bestLap, cars, overallBest, minis, lastMinis } = this;
-    return { type: 'history', sessionUid, outline, current, currentLap, lastLap, bestLap, cars, overallBest, minis, lastMinis };
+    const { sessionUid, outline, current, currentLap, lastLap, bestLap, cars, overallBest, minis, lastMinis, playerPrev, currentClean } = this;
+    return { type: 'history', sessionUid, outline, current, currentLap, lastLap, bestLap, cars, overallBest, minis, lastMinis, playerPrev, currentClean };
   }
 
   loadHistory(h: LapHistory) {
     this.sessionUid = h.sessionUid;
     this.outline = h.outline;
     this.outlineFilled = h.outline.filter(Boolean).length;
+    this.playerPrev = h.playerPrev;
+    this.currentClean = h.currentClean;
     this.current = h.current;
     this.currentLap = h.currentLap;
     this.lastLap = h.lastLap;
@@ -231,6 +294,8 @@ export class LapStore {
     this.sessionUid = uid;
     this.outline = new Array(OUTLINE_BINS).fill(null);
     this.outlineFilled = 0;
+    this.playerPrev = null;
+    this.currentClean = false;
     this.current = [];
     this.currentLap = 0;
     this.lastLap = this.bestLap = null;

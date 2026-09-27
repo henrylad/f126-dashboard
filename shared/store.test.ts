@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LapStore, MINI_SECTORS } from './store.ts';
+import { LapStore, MINI_SECTORS, OUTLINE_BINS } from './store.ts';
 import type { CarRow, Snapshot } from './types.ts';
 
 const LEN = 2500; // 25 mini sectors of 100 m
@@ -14,7 +14,7 @@ function drive(store: LapStore, speeds: number[][], seconds: number) {
   for (let t = 0; t <= seconds; t += dt) {
     const cars = speeds.map((perLap, i) => {
       const lap = Math.floor(dist[i] / LEN) + 1;
-      return { idx: i, lap, lapDistance: dist[i] - (lap - 1) * LEN, currentLapMs: (t - lapStart[i]) * 1000, lastLapMs: lastLap[i], isPlayer: i === 0, currentLapInvalid: false, pitStatus: 0, x: 0, z: 0 } as CarRow;
+      return { idx: i, lap, lapDistance: dist[i] - (lap - 1) * LEN, currentLapMs: (t - lapStart[i]) * 1000, lastLapMs: lastLap[i], isPlayer: i === 0, currentLapInvalid: false, pitStatus: 0, driverStatus: 4, x: 0, z: 0 } as CarRow;
     });
     store.update({ session: { uid: 'u', trackLength: LEN }, cars, player: null } as unknown as Snapshot);
     speeds.forEach((perLap, i) => {
@@ -62,4 +62,84 @@ test('a slower lap shows yellow, a PB that is not overall shows green', () => {
   const pb = store.minis.filter(Boolean);
   assert.ok(pb.length > 5);
   for (const m of pb) assert.equal(m!.colour, 2, 'PB but rival is faster → green');
+});
+
+// --- pit lane / out-lap scenario -------------------------------------------
+
+type CarState = Partial<CarRow> & { lap: number; lapDistance: number; currentLapMs: number };
+
+/** Player-only session on a straight "track" along x, so position = lap distance. */
+function frame(store: LapStore, c: CarState, offsetZ = 0) {
+  const car = {
+    idx: 0, isPlayer: true, currentLapInvalid: false, pitStatus: 0, driverStatus: 1, lastLapMs: 0,
+    x: c.lapDistance, z: offsetZ, ...c,
+  } as CarRow;
+  const player = { lapDistance: car.lapDistance, currentLapMs: car.currentLapMs, lap: car.lap, speed: 200, throttle: 1, brake: 0, gear: 7, ersStoreJ: 3e6, ersDeployMode: 1, overtakeActive: false };
+  store.update({ session: { uid: 'pits', trackLength: LEN }, cars: [car], player } as unknown as Snapshot);
+}
+
+/** Garage → pit lane → out-lap → line crossed with a timer reset (same lap number) → 2 flying laps → in-lap. */
+function pitScenario(store: LapStore, flyingLaps = 2) {
+  const dt = 1000 / 30;
+  let t = 0;
+  // Garage: 3 s parked 60 m off the track.
+  for (let i = 0; i < 90; i++) frame(store, { lap: 1, lapDistance: LEN - 400, currentLapMs: (t += dt), driverStatus: 0, pitStatus: 2 }, 60);
+  // Pit lane (flagged) then the pit-exit road (not flagged), 30 m off the track.
+  for (let d = LEN - 400; d < LEN - 100; d += 22 / 30) frame(store, { lap: 1, lapDistance: d, currentLapMs: (t += dt), driverStatus: 3, pitStatus: 1 }, 30);
+  for (let d = LEN - 100; d < LEN; d += 30 / 30) frame(store, { lap: 1, lapDistance: d, currentLapMs: (t += dt), driverStatus: 3 }, 30 * (LEN - d) / 100);
+  // Cross the line: timer resets, lap number unchanged, status still "out lap" briefly.
+  let lap = 1, lastLapMs = 0;
+  t = 0;
+  for (let n = 0; n < flyingLaps; n++) {
+    // 50 m/s: frame f is at f × 1.667 m and f × 33.3 ms, so the lap takes exactly 50 s.
+    for (let f = 0; f * 50 / 30 < LEN; f++) {
+      frame(store, { lap, lapDistance: (f * 50) / 30, currentLapMs: f * dt, driverStatus: f * dt < 500 && n === 0 ? 3 : 1, lastLapMs });
+    }
+    lastLapMs = 50_000;
+    t = 0;
+    lap++;
+  }
+  // In-lap into the pit entry road (not flagged yet), 25 m off the track.
+  for (let d = 0; d < LEN - 300; d += 50 / 30) frame(store, { lap, lapDistance: d, currentLapMs: (t += dt), driverStatus: 2, lastLapMs });
+  for (let d = LEN - 300; d < LEN - 50; d += 25 / 30) frame(store, { lap, lapDistance: d, currentLapMs: (t += dt), driverStatus: 2, lastLapMs }, 25);
+}
+
+test('first flying lap after an out-lap is fully timed, even when the lap number does not change at the line', () => {
+  const store = new LapStore();
+  pitScenario(store);
+  // lastMinis now holds flying lap 2 (in-lap is current); check flying lap 1 via the best lap.
+  const best = store.bestLap!;
+  assert.ok(best, 'a best lap exists');
+  assert.equal(best.lap, 1);
+  assert.ok(Math.abs(best.timeMs - 50_000) < 50, `best lap is the flying lap, not the out-lap: ${best.timeMs}`);
+  assert.equal(best.minis.filter(Boolean).length, MINI_SECTORS, 'all 25 mini sectors timed, including the first');
+  for (const m of best.minis) {
+    assert.ok(Math.abs(m!.ms - 2000) < 5, `mini ${m!.ms}`);
+    assert.equal(m!.colour, 3, 'first flying lap sets purple');
+  }
+});
+
+test('out-lap and in-lap mini sectors are not counted', () => {
+  const store = new LapStore();
+  pitScenario(store);
+  const inLap = store.minis.filter(Boolean);
+  assert.ok(inLap.length > 5);
+  for (const m of inLap) assert.equal(m!.colour, 0, 'in-lap is grey');
+  // Out-lap pit exit road sector must not have set a (slow) best: flying lap was purple everywhere.
+  assert.ok(store.bestLap!.minis.every((m) => m!.colour === 3));
+});
+
+test('the track map survives the garage, pit lane and pit entry road', () => {
+  const store = new LapStore();
+  pitScenario(store);
+  const off = store.outline.filter((p) => p && Math.abs(p.z) > 5);
+  assert.equal(off.length, 0, `${off.length} outline points pulled off the track`);
+  assert.ok(store.outlineFilled > OUTLINE_BINS * 0.95);
+});
+
+test('with only one flying lap before pitting, the pit entry road still cannot bend the map', () => {
+  const store = new LapStore();
+  pitScenario(store, 1);
+  const off = store.outline.filter((p) => p && Math.abs(p.z) > 5);
+  assert.equal(off.length, 0, `${off.length} outline points pulled off the track`);
 });

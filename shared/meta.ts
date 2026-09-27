@@ -93,7 +93,7 @@ export const FLAG_COLOURS: Record<number, string> = { 1: '#3DD66B', 2: '#2F8BFF'
 
 // Mini-sector colours, indexed by MiniColour (0 not counted, 1 slower, 2 PB, 3 overall best).
 export const MINI_COLOURS = ['#58638f', '#ffc906', '#2fd27a', '#b44dff'];
-export const MINI_LABELS = ['Not counted (invalid lap)', 'Slower than your best', 'Personal best', 'Fastest overall'];
+export const MINI_LABELS = ['Not counted (out/in-lap, pits, invalid)', 'Slower than your best', 'Personal best', 'Fastest overall'];
 export const MINI_PENDING = '#1e2a5a';
 
 // Energy map categories (validated for colour-blind separation on the dark surface).
