@@ -390,3 +390,6 @@ body {
 .mini-table td.cell.best { background: rgba(180, 77, 255, 0.28); color: #e9d5ff; }
 .mini-table .best-row td:first-child { color: var(--purple); font-weight: 700; }
 .mini-table td.lost { color: var(--red-soft); font-weight: 700; padding-left: 10px; }
+.driver-cell { display: inline-flex; align-items: center; gap: 6px; }
+.driver-cell i { width: 4px; height: 14px; border-radius: 2px; }
+.lap-table small.faster { color: var(--green); }

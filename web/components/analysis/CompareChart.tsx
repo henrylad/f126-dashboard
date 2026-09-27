@@ -7,7 +7,8 @@ import {
   drawDistanceAxis, drawPanelLabel, drawSeries, layoutPanels, observeSize, type Channel, type DeltaPoint, type Panel,
 } from '../../chart.ts';
 
-export interface Compared { lap: Lap; colour: string }
+/** A lap in the comparison, with its colour and a short label (e.g. "L5" or "VER L7"). */
+export interface Compared { lap: Lap; colour: string; label: string }
 
 /** Time difference to the reference lap along the lap distance. */
 function deltaTo(lap: Lap, ref: Lap): DeltaPoint[] {
@@ -90,7 +91,7 @@ export function CompareChart({ laps, refLap, session }: { laps: Compared[]; refL
                 };
                 return (
                   <tr key={c.lap.id}>
-                    <td><i className="sw" style={{ background: c.colour }} />{c.lap.lap}{c === refCompared ? ' ref' : ''}</td>
+                    <td><i className="sw" style={{ background: c.colour }} />{c.label}{c === refCompared ? ' ref' : ''}</td>
                     <td style={{ color: d === null || c === refCompared ? undefined : d <= 0 ? 'var(--green)' : 'var(--red-soft)' }}>{d === null || c === refCompared ? '—' : fmtDelta(d)}</td>
                     <td>{v('speed', (x) => String(Math.round(x)))}</td>
                     <td>{v('throttle', (x) => `${Math.round(x * 100)}`)}</td>

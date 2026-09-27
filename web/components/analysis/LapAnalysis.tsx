@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import type { Snapshot } from '../../../shared/types.ts';
 import type { LapStore } from '../../../shared/store.ts';
 import { theoreticalBest, type Lap } from '../../../shared/laps.ts';
-import { delta as fmtDelta, lapTime, sectorTime } from '../../format.ts';
+import { code, delta as fmtDelta, lapTime, sectorTime } from '../../format.ts';
 import { LAP_COLOURS } from '../../chart.ts';
-import { LapTable, sortValue, type SortKey } from './LapTable.tsx';
+import { LapTable, sortValue, type Owner, type SortKey } from './LapTable.tsx';
 import { CompareChart, type Compared } from './CompareChart.tsx';
 import { MiniCompare } from './MiniCompare.tsx';
 import { EnergyCompare } from './EnergyCompare.tsx';
@@ -16,11 +16,28 @@ const DESC_FIRST = new Set<SortKey>(['top', 'throttle', 'harvested']);
 
 const byTime = (a: Lap, b: Lap) => a.timeMs - b.timeMs;
 
+function sortLaps(laps: Lap[], sort: { key: SortKey; dir: 1 | -1 }): Lap[] {
+  return [...laps].sort((a, b) => {
+    const va = sortValue(a, sort.key), vb = sortValue(b, sort.key);
+    if (va === null) return vb === null ? 0 : 1;
+    if (vb === null) return -1;
+    return (va - vb) * sort.dir;
+  });
+}
+
 export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapStore }) {
   const laps = store.laps;
   const timed = laps.filter((l) => l.kind === 'timed');
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'id', dir: 1 });
+  const [driverSort, setDriverSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'time', dir: 1 });
+  const driverLaps = store.driverBests();
+  const everyLap = [...laps, ...driverLaps];
+  const ownerOf = (l: Lap): Owner => {
+    const car = snap.cars.find((c) => c.idx === l.carIdx);
+    return { name: car?.name ?? `Car ${l.carIdx + 1}`, colour: car?.colour ?? '#8d98c7' };
+  };
+  const labelOf = (l: Lap) => (l.carIdx === store.playerIdx ? `L${l.lap}` : `${code(ownerOf(l).name)} L${l.lap}`);
   // Selected laps keep their colour slot while selected (colour follows the lap).
   const [selected, setSelected] = useState<{ id: number; slot: number }[]>([]);
   const [refId, setRefId] = useState<number | null>(null);
@@ -50,25 +67,23 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapStore }
       return [...prev, { id, slot }];
     });
   };
-  const onSort = (key: SortKey) =>
-    setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: DESC_FIRST.has(key) ? -1 : 1 }));
+  const sorter = (set: typeof setSort) => (key: SortKey) =>
+    set((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: DESC_FIRST.has(key) ? -1 : 1 }));
+  const setRef = (id: number) => { setTouched(true); setRefId(id); };
 
-  const refLap = laps.find((l) => l.id === (refId ?? fastest?.id)) ?? null;
+  const fastestDriver = driverLaps[0] ?? null;
+  const refLap = everyLap.find((l) => l.id === (refId ?? fastest?.id)) ?? null;
   const colourOf = (id: number) => {
     const s = selected.find((x) => x.id === id);
     return s ? LAP_COLOURS[s.slot] : null;
   };
-  const compared: Compared[] = selected
-    .map((s) => ({ lap: laps.find((l) => l.id === s.id)!, colour: LAP_COLOURS[s.slot] }))
-    .filter((c) => c.lap);
-
-  let rows = filter === 'all' ? laps : filter === 'valid' ? timed : [...timed].sort(byTime).slice(0, 5);
-  rows = [...rows].sort((a, b) => {
-    const va = sortValue(a, sort.key), vb = sortValue(b, sort.key);
-    if (va === null) return vb === null ? 0 : 1;
-    if (vb === null) return -1;
-    return (va - vb) * sort.dir;
+  const compared: Compared[] = selected.flatMap((s) => {
+    const lap = everyLap.find((l) => l.id === s.id);
+    return lap ? [{ lap, colour: LAP_COLOURS[s.slot], label: labelOf(lap) }] : [];
   });
+
+  const rows = sortLaps(filter === 'all' ? laps : filter === 'valid' ? timed : [...timed].sort(byTime).slice(0, 5), sort);
+  const driverRows = sortLaps(driverLaps, driverSort);
 
   const theo = theoreticalBest(laps);
   const bestSector = (i: 0 | 1 | 2) => {
@@ -80,7 +95,7 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapStore }
   const topLap = laps.length ? laps.reduce((a, b) => (b.stats.topSpeed > a.stats.topSpeed ? b : a)) : null;
 
   if (!snap.session) return null;
-  if (!laps.length) {
+  if (!laps.length && !driverLaps.length) {
     return (
       <div className="empty">
         <h1>No laps yet</h1>
@@ -97,6 +112,8 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapStore }
         <Card k="Theoretical best" v={theo ? lapTime(Math.round(theo)) : '—'} s={theo && fastest ? `${fmtDelta(theo - fastest.timeMs)} · best mini sectors` : 'Best of each mini sector'} />
         <Card k="Best sectors" v={bs.map((x) => (x === null ? '—' : sectorTime(x))).join(' · ')} s={ideal && fastest ? `Ideal ${lapTime(Math.round(ideal))} (${fmtDelta(ideal - fastest.timeMs)})` : 'S1 · S2 · S3'} />
         <Card k="Top speed" v={topLap ? `${topLap.stats.topSpeed} km/h` : '—'} s={topLap ? `Lap ${topLap.lap}` : ''} />
+        <Card k="Fastest driver" v={fastestDriver ? lapTime(fastestDriver.timeMs) : '—'}
+          s={fastestDriver ? `${ownerOf(fastestDriver).name}${fastest ? ` · you ${fmtDelta(fastest.timeMs - fastestDriver.timeMs)}` : ''}` : 'No other driver has a valid lap yet'} />
       </section>
 
       <section className="panel">
@@ -117,7 +134,26 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapStore }
           </span>
         </h2>
         <p className="hint">Click rows to compare (up to {LAP_COLOURS.length}). <b>Ref</b> sets the lap the delta is measured against. Click a column to sort.</p>
-        <LapTable laps={rows} allLaps={laps} sort={sort} onSort={onSort} colourOf={colourOf} onToggle={toggle} refId={refLap?.id ?? null} onRef={(id) => { setTouched(true); setRefId(id); }} />
+        <LapTable laps={rows} allLaps={laps} sort={sort} onSort={sorter(setSort)} colourOf={colourOf} onToggle={toggle} refId={refLap?.id ?? null} onRef={setRef} />
+      </section>
+
+      <section className="panel">
+        <h2>
+          Drivers' fastest laps
+          <span className="aside legend">
+            <span className="seg" role="group" aria-label="Compare with drivers">
+              <button disabled={!fastest || !fastestDriver} onClick={() => fastest && fastestDriver && select([fastest.id, fastestDriver.id], fastestDriver.id)}>Me vs fastest</button>
+              <button disabled={!fastest || !fastestDriver} onClick={() => fastest && fastestDriver && select([fastest.id, ...driverLaps.slice(0, 3).map((l) => l.id)], fastestDriver.id)}>Me vs top 3</button>
+            </span>
+          </span>
+        </h2>
+        <p className="hint">Each driver's best valid lap this session, with the same data as yours. Time gap is to <b>your</b> best lap. Select them to compare alongside your laps.</p>
+        {driverLaps.length ? (
+          <LapTable laps={driverRows} allLaps={[...driverLaps, ...timed]} baseline={fastest?.timeMs ?? null} ownerOf={ownerOf}
+            sort={driverSort} onSort={sorter(setDriverSort)} colourOf={colourOf} onToggle={toggle} refId={refLap?.id ?? null} onRef={setRef} />
+        ) : (
+          <p className="dim">No other driver has completed a valid lap yet.</p>
+        )}
       </section>
 
       <section className="panel">
@@ -127,7 +163,7 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapStore }
             {compared.map((c) => (
               <span key={c.lap.id}>
                 <i className={c.lap.id === refLap?.id ? 'dash-colour' : ''} style={{ background: c.colour, color: c.colour }} />
-                Lap {c.lap.lap} · {lapTime(c.lap.timeMs)}{c.lap.id === refLap?.id ? ' (ref)' : ''}
+                {c.label} · {lapTime(c.lap.timeMs)}{c.lap.id === refLap?.id ? ' (ref)' : ''}
               </span>
             ))}
           </span>
@@ -136,7 +172,7 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapStore }
       </section>
 
       <section className="panel">
-        <h2>Mini sectors <span className="aside">loss vs your best in each mini sector · ● = best</span></h2>
+        <h2>Mini sectors <span className="aside">loss vs the best of your laps and the compared laps · ● = best</span></h2>
         <MiniCompare laps={compared} allLaps={laps} />
       </section>
 

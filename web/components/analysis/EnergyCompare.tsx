@@ -7,7 +7,7 @@ import type { Compared } from './CompareChart.tsx';
 const BINS = 300;
 const ROW_H = 18;
 const ROW_GAP = 6;
-const LABEL_W = 44;
+const LABEL_W = 72;
 
 /** One strip per lap showing where the battery harvested, deployed or boosted. */
 export function EnergyCompare({ laps, trackLength }: { laps: Compared[]; trackLength: number }) {
@@ -28,13 +28,13 @@ export function EnergyCompare({ laps, trackLength }: { laps: Compared[]; trackLe
     g.clearRect(0, 0, w, height);
     g.font = '600 11px "Titillium Web", sans-serif';
     const plotW = w - LABEL_W - 12;
-    laps.forEach(({ lap, colour }, row) => {
+    laps.forEach(({ lap, colour, label }, row) => {
       const y = row * (ROW_H + ROW_GAP);
       g.fillStyle = colour;
       g.fillRect(0, y + 4, 8, ROW_H - 8);
       g.fillStyle = '#eef1fa';
       g.textBaseline = 'middle';
-      g.fillText(String(lap.lap), 14, y + ROW_H / 2);
+      g.fillText(label, 14, y + ROW_H / 2);
       g.fillStyle = '#1a2350';
       g.fillRect(LABEL_W, y, plotW, ROW_H);
       const bins = energyBins(lap.samples, trackLength, BINS);

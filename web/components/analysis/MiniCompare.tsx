@@ -7,12 +7,13 @@ import type { Compared } from './CompareChart.tsx';
 const FULL_LOSS_MS = 300;
 
 /**
- * Heatmap of mini-sector times: each cell is the loss against your best time in
- * that mini sector this session (valid laps). Purple = that best; deeper red =
- * more time lost.
+ * Heatmap of mini-sector times: each cell is the loss against the best time in
+ * that mini sector among your valid laps and the laps being compared (so a
+ * faster driver's mini sector becomes the benchmark). Purple ● = that best;
+ * deeper red = more time lost.
  */
 export function MiniCompare({ laps, allLaps }: { laps: Compared[]; allLaps: Lap[] }) {
-  const timed = allLaps.filter((l) => l.kind === 'timed');
+  const timed = [...allLaps.filter((l) => l.kind === 'timed'), ...laps.map((c) => c.lap).filter((l) => l.kind === 'timed')];
   const best = Array.from({ length: MINI_SECTORS }, (_, k) => {
     const v = timed.map((l) => l.minis[k]?.ms).filter((x): x is number => !!x);
     return v.length ? Math.min(...v) : null;
@@ -37,11 +38,11 @@ export function MiniCompare({ laps, allLaps }: { laps: Compared[]; allLaps: Lap[
             {best.map((b, k) => <td key={k} className="cell best" title={b ? `Best mini ${k + 1}: ${(b / 1000).toFixed(3)} s` : undefined}>{b ? (b / 1000).toFixed(2) : '—'}</td>)}
             <td />
           </tr>
-          {laps.map(({ lap, colour }) => {
+          {laps.map(({ lap, colour, label }) => {
             let lost = 0;
             return (
               <tr key={lap.id}>
-                <td><i className="sw" style={{ background: colour }} />{lap.lap}</td>
+                <td><i className="sw" style={{ background: colour }} />{label}</td>
                 {lap.minis.map((m, k) => {
                   const b = best[k];
                   if (!m || !b) return <td key={k} className="cell">—</td>;
