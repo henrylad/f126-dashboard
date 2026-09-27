@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTelemetry } from './useTelemetry.ts';
 import { Header } from './components/Header.tsx';
 import { TimingTower } from './components/TimingTower.tsx';
@@ -8,16 +9,39 @@ import { Energy } from './components/Energy.tsx';
 import { Tyres } from './components/Tyres.tsx';
 import { Damage } from './components/Damage.tsx';
 import { Feed } from './components/Feed.tsx';
+import { LapAnalysis } from './components/analysis/LapAnalysis.tsx';
 
 const STALE_MS = 3000;
+
+type Tab = 'live' | 'laps';
+const TAB_KEY = 'pitwall.tab';
+
+function savedTab(): Tab {
+  try {
+    return localStorage.getItem(TAB_KEY) === 'laps' ? 'laps' : 'live';
+  } catch {
+    return 'live';
+  }
+}
 
 export function App() {
   const { snap, store, connected } = useTelemetry();
   const waiting = !snap || snap.lastPacketAgoMs === null || snap.lastPacketAgoMs > STALE_MS;
+  const [tab, setTab] = useState<Tab>(savedTab);
+  const pick = (t: Tab) => {
+    setTab(t);
+    try { localStorage.setItem(TAB_KEY, t); } catch { /* per-browser convenience only */ }
+  };
 
   return (
     <div className="app">
       <Header snap={snap} connected={connected} stale={waiting} />
+      <nav className="tabs" role="tablist">
+        <button role="tab" aria-selected={tab === 'live'} className={tab === 'live' ? 'on' : ''} onClick={() => pick('live')}>Live</button>
+        <button role="tab" aria-selected={tab === 'laps'} className={tab === 'laps' ? 'on' : ''} onClick={() => pick('laps')}>
+          Lap analysis{store.laps.length ? <span className="count num">{store.laps.length}</span> : null}
+        </button>
+      </nav>
       {snap?.wrongFormat && (
         <div className="banner">
           The game is sending <b>packet format {snap.wrongFormat}</b>. In F1 25 go to
@@ -27,7 +51,10 @@ export function App() {
       {!snap?.session || !snap.player ? (
         <Setup connected={connected} />
       ) : (
-        <main className="main">
+        <>
+        {/* Both tabs stay mounted so selections and scroll survive switching. */}
+        <div className="tab-body" hidden={tab !== 'laps'}><LapAnalysis snap={snap} store={store} /></div>
+        <main className="main" hidden={tab !== 'live'}>
           <div className="col">
             <TimingTower cars={snap.cars} sessionType={snap.session.sessionType} />
           </div>
@@ -43,6 +70,7 @@ export function App() {
             <Feed snap={snap} />
           </div>
         </main>
+        </>
       )}
     </div>
   );
