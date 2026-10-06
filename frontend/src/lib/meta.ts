@@ -98,9 +98,10 @@ export const MINI_PENDING = '#1e2a5a';
 
 // Energy map categories (validated for colour-blind separation on the dark surface).
 export const ENERGY = [
-  { key: 'harvest', label: 'Harvesting', colour: '#4D8DFF' },
-  { key: 'medium', label: 'Deploy · Medium', colour: '#2FD27A' },
-  { key: 'hotlap', label: 'Deploy · Hotlap', colour: '#FF9F1A' },
-  { key: 'boost', label: 'Boost', colour: '#FF3355' },
+  // Harvest is blue; deploy is one warm ramp that gets lighter as it gets stronger.
+  { key: 'harvest', label: 'Harvesting', colour: '#58A6FF' },
+  { key: 'medium', label: 'Deploy · Medium', colour: '#9E6A03' },
+  { key: 'hotlap', label: 'Deploy · Hotlap', colour: '#F0883E' },
+  { key: 'boost', label: 'Boost', colour: '#FFB3C6' },
 ] as const;
 export type EnergyKey = (typeof ENERGY)[number]['key'];

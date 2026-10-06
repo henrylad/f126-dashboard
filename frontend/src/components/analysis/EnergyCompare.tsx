@@ -26,16 +26,16 @@ export function EnergyCompare({ laps, trackLength }: { laps: Compared[]; trackLe
     const g = el.getContext('2d')!;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, height);
-    g.font = '600 11px "Titillium Web", sans-serif';
+    g.font = '500 11px "Geist Variable", system-ui, sans-serif';
     const plotW = w - LABEL_W - 12;
     laps.forEach(({ lap, colour, label }, row) => {
       const y = row * (ROW_H + ROW_GAP);
       g.fillStyle = colour;
       g.fillRect(0, y + 4, 8, ROW_H - 8);
-      g.fillStyle = '#eef1fa';
+      g.fillStyle = '#e6edf3';
       g.textBaseline = 'middle';
       g.fillText(label, 14, y + ROW_H / 2);
-      g.fillStyle = '#1a2350';
+      g.fillStyle = '#1b212b';
       g.fillRect(LABEL_W, y, plotW, ROW_H);
       const bins = energyBins(lap.samples, trackLength, BINS);
       for (let b = 0; b < BINS; b++) {
@@ -51,7 +51,7 @@ export function EnergyCompare({ laps, trackLength }: { laps: Compared[]; trackLe
     <>
       <div className="legend" style={{ marginBottom: 8 }}>
         {ENERGY.map((e) => <span key={e.key}><i style={{ background: e.colour, height: 8 }} />{e.label}</span>)}
-        <span><i style={{ background: '#1a2350', height: 8 }} />No flow</span>
+        <span><i style={{ background: '#1b212b', height: 8 }} />No flow</span>
       </div>
       <div style={{ height }}>
         <canvas ref={canvas} style={{ width: '100%', height }} role="img" aria-label="Energy use along each selected lap" />

@@ -82,8 +82,8 @@ export function TrackMap({ snap, store }: { snap: Snapshot; store: LapView }) {
           <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Live track map">
             {coverage > 0.05 && (
               <>
-                <polyline points={segment(outline, 0, 1)} fill="none" stroke="#1e2a5a" strokeWidth={14} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                <polyline points={segment(outline, 0, 1)} fill="none" stroke="#33438a" strokeWidth={3} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                <polyline points={segment(outline, 0, 1)} fill="none" stroke="var(--line)" strokeWidth={14} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                <polyline points={segment(outline, 0, 1)} fill="none" stroke="var(--line-strong)" strokeWidth={3} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
               </>
             )}
             {view === 'minis' && Array.from({ length: MINI_SECTORS }, (_, k) => {

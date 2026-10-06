@@ -67,7 +67,7 @@ export function Traces({ snap, store }: { snap: Snapshot; store: LapView }) {
     for (const p of panels) {
       drawPanelLabel(f, p);
       if (p.key === 'delta') {
-        drawDeltaPanel(f, p, [{ pts: deltaTrace, colour: C.deltaLine }], deltaRange([deltaTrace]), ref ? undefined : 'Available after your first full lap');
+        drawDeltaPanel(f, p, [{ pts: deltaTrace, colour: C.deltaLine, fill: true }], deltaRange([deltaTrace]), ref ? undefined : 'Available after your first full lap');
         continue;
       }
       const cp = p as Panel<Channel>;
