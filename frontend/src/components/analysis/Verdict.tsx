@@ -35,8 +35,9 @@ const Swatch = ({ colour, dashed }: { colour: string; dashed?: boolean }) =>
 
 export function Verdict({ verdict, focus, others, refCompared, refLap, refLabel, onFocus, activeZone, onZone, yourBest, theoretical, fastestDriver, ownerOf }: Props) {
   const losses = verdict?.losses ?? [];
-  const explained = losses.reduce((a, z) => a + z.ms, 0) + (verdict?.gain?.ms ?? 0);
-  const elsewhere = verdict ? verdict.gapMs - explained : 0;
+  // From the rounded figures shown, so the parts add up to the headline gap exactly.
+  const explained = losses.reduce((a, z) => a + Math.round(z.ms), 0) + Math.round(verdict?.gain?.ms ?? 0);
+  const elsewhere = verdict ? Math.round(verdict.gapMs) - explained : 0;
 
   return (
     <section className="a-section verdict" aria-labelledby="h-verdict">

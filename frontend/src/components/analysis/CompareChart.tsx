@@ -83,7 +83,6 @@ export function CompareChart({ headingId, laps, refLap, focusId, session, zones,
     drawAeroZones(f, session.aeroZonesFull.concat(session.aeroZonesPartial), MARGIN.t, bottom);
     drawZoneBrackets(f, zones, panels[0].top, panels[0].top + panels[0].h, bottom, activeZone);
     for (const p of panels) {
-      drawPanelLabel(f, p);
       if (p.key === 'delta') {
         const series = [
           ...(refCompared ? [{ pts: [{ d: 0, ms: 0 }, { d: len, ms: 0 }], colour: refCompared.colour, dashed: true }] : []),
@@ -109,6 +108,8 @@ export function CompareChart({ headingId, laps, refLap, focusId, session, zones,
       if (refCompared) drawSeries(f, cp, refCompared.lap.samples, refCompared.colour, { dashed: true, width: 1.25 });
       for (const c of ordered) drawSeries(f, cp, c.lap.samples, c.colour, { width: 1.75, halo: c.lap.id === focusId });
     }
+    // Labels last, on their plates, so no trace runs through them.
+    for (const p of panels) drawPanelLabel(f, p);
     drawDistanceAxis(f, session.sector2Start, session.sector3Start, MARGIN.t, bottom, MINI_SECTORS);
     if (brush) drawBrush(f, brush.a, brush.b, MARGIN.t, bottom);
     drawCursor(f, cursor, MARGIN.t, bottom);

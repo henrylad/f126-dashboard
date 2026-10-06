@@ -546,10 +546,12 @@ body {
   .zone-why { grid-column: 2 / -1; }
 }
 @media (max-width: 860px) {
-  /* The answer first; the lap list follows it. */
+  /* The answer first, then the lap list to change it, then the charts. */
   .analysis { display: flex; flex-direction: column; height: auto; }
-  .analysis-main { order: 1; }
+  .analysis-main { display: contents; }
+  .verdict { order: 1; }
   .rail { order: 2; }
+  .analysis-main > .a-section:not(.verdict) { order: 3; }
   .readout { padding-left: 0; }
   .tool-hint { display: none; }
   .data-wrap { margin: 0 -16px; }
