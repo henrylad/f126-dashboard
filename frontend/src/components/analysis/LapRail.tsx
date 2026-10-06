@@ -26,16 +26,18 @@ interface Props {
   onToggle: (id: number) => void;
   onRef: (id: number) => void;
   presets: Record<'bestVsLast' | 'meVsFastest' | 'meVsTop3' | 'clear', (() => void) | null>;
+  activePreset: string | null;
+  slotColour: (id: number, slot: number) => string;
 }
 
-export function LapRail({ laps, driverLaps, filter, onFilter, ownerOf, labelOf, bests, refLap, selected, onToggle, onRef, presets }: Props) {
+export function LapRail({ laps, driverLaps, filter, onFilter, ownerOf, labelOf, bests, refLap, selected, onToggle, onRef, presets, activePreset, slotColour }: Props) {
   const timed = laps.filter((l) => l.kind === 'timed');
   const shown = filter === 'all' ? laps : filter === 'valid' ? timed : [...timed].sort((a, b) => a.timeMs - b.timeMs).slice(0, 5);
   const full = selected.length >= LAP_COLOURS.length;
 
   const row = (l: Lap, driver: boolean) => {
     const slot = selected.find((s) => s.id === l.id)?.slot;
-    const colour = slot === undefined ? null : LAP_COLOURS[slot];
+    const colour = slot === undefined ? null : slotColour(l.id, slot);
     const valid = l.kind === 'timed';
     const telemetry = hasTelemetry(l);
     const isRef = refLap?.id === l.id;
@@ -86,9 +88,10 @@ export function LapRail({ laps, driverLaps, filter, onFilter, ownerOf, labelOf, 
           </span>
         </div>
         <div className="presets">
-          <button disabled={!presets.bestVsLast} onClick={presets.bestVsLast ?? undefined}>Best vs last 3</button>
-          <button disabled={!presets.meVsFastest} onClick={presets.meVsFastest ?? undefined}>Me vs fastest</button>
-          <button disabled={!presets.meVsTop3} onClick={presets.meVsTop3 ?? undefined}>Me vs top 3</button>
+          {([['bestVsLast', 'Best vs last 3'], ['meVsFastest', 'Me vs fastest'], ['meVsTop3', 'Me vs top 3']] as const).map(([key, label]) => (
+            <button key={key} className={activePreset === key ? 'on' : ''} aria-pressed={activePreset === key}
+              disabled={!presets[key]} onClick={presets[key] ?? undefined}>{label}</button>
+          ))}
           <button className="quiet" disabled={!presets.clear} onClick={presets.clear ?? undefined}>Clear</button>
         </div>
         {refLap && <p className="rail-note">Gaps are to the reference, <b className="num">{labelOf(refLap)}</b> {lapTime(refLap.timeMs)}.</p>}

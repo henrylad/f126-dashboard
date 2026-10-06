@@ -28,10 +28,11 @@ export const C = {
 };
 
 /**
- * Fixed-order colours for compared laps. They avoid the colours that carry
- * meaning on this tab (red lost, green gained, purple best, amber aero).
+ * Fixed-order colours for compared laps. They avoid every colour that carries
+ * meaning (red lost, green gained, purple best, amber aero, blue focus); the
+ * reference lap is always drawn in neutral `C.ref` whatever slot it holds.
  */
-export const LAP_COLOURS = ['#ffa657', '#79c0ff', '#39d2c0', '#f778ba', '#e6edf3', '#8c9eff'];
+export const LAP_COLOURS = ['#ffa657', '#2dd4bf', '#f472b6', '#e9e26b', '#c8a27a', '#8bd5ca'];
 
 const SANS = '"Geist Variable", system-ui, sans-serif';
 const MONO = '"Geist Mono Variable", ui-monospace, monospace';
@@ -42,7 +43,7 @@ export const CHANNELS: Record<Channel, { label: string; max: number; ticks: numb
   speed: { label: 'Speed km/h', max: 360, ticks: [0, 100, 200, 300], fmt: String, colour: C.current, fill: false },
   throttle: { label: 'Throttle %', max: 1, ticks: [0, 1], fmt: (v) => `${v * 100}`, colour: C.throttle, fill: true },
   brake: { label: 'Brake %', max: 1, ticks: [0, 1], fmt: (v) => `${v * 100}`, colour: C.brake, fill: true },
-  gear: { label: 'Gear', max: 8, ticks: [2, 4, 6, 8], fmt: String, colour: C.gear, fill: false, step: true },
+  gear: { label: 'Gear', max: 8, ticks: [1, 8], fmt: String, colour: C.gear, fill: false, step: true },
   ers: { label: 'Battery (ERS store) %', max: ERS_MAX_J, ticks: [0, ERS_MAX_J / 2, ERS_MAX_J], fmt: (v) => `${Math.round((v / ERS_MAX_J) * 100)}`, colour: C.battery, fill: true },
 };
 

@@ -21,11 +21,13 @@ interface Props {
 }
 
 const km = (m: number) => (m / 1000).toFixed(2);
-const seconds = (ms: number) => `${(Math.abs(ms) / 1000).toFixed(3)} s`;
+const secs = (ms: number) => (Math.abs(ms) / 1000).toFixed(3);
+/** Figures in mono, words in the UI face. */
+const N = ({ children }: { children: React.ReactNode }) => <span className="num">{children}</span>;
 
 function where(z: Zone) {
-  const minis = z.minis[0] === z.minis[1] ? `mini ${z.minis[0]}` : `minis ${z.minis[0]}–${z.minis[1]}`;
-  return <>{km(z.from)}–{km(z.to)} km <span className="dim">· S{z.sector} · {minis}</span></>;
+  const minis = z.minis[0] === z.minis[1] ? <>mini <N>{z.minis[0]}</N></> : <>minis <N>{z.minis[0]}–{z.minis[1]}</N></>;
+  return <><N>{km(z.from)}–{km(z.to)}</N> km <span className="dim">· S<N>{z.sector}</N> · {minis}</span></>;
 }
 
 const Swatch = ({ colour, dashed }: { colour: string; dashed?: boolean }) =>
@@ -44,16 +46,16 @@ export function Verdict({ verdict, focus, others, refCompared, refLap, refLabel,
         <p className="verdict-line muted">Pick a reference lap with <b>Ref</b> in the list. Every gap on this tab is measured against it.</p>
       ) : !focus || !verdict ? (
         <p className="verdict-line muted">
-          <Swatch colour={refCompared?.colour ?? 'var(--muted)'} dashed /> <b>{refLabel}</b> is the reference. Tick another lap to see where it loses time.
+          <b>{refLabel}</b> is the reference. Tick another lap to see where it loses time.
         </p>
       ) : (
         <>
           <div className="verdict-head">
             <p className="verdict-line" aria-live="polite">
               <Swatch colour={focus.colour} /> <b>{focus.label}</b> is{' '}
-              <span className={`num gap ${verdict.gapMs > 0 ? 'lost' : 'gained'}`}>{verdict.gapMs === 0 ? 'level' : `${seconds(verdict.gapMs)} ${verdict.gapMs > 0 ? 'slower' : 'faster'}`}</span>
+              <span className={`gap ${verdict.gapMs > 0 ? 'lost' : 'gained'}`}>{verdict.gapMs === 0 ? 'level' : <><N>{secs(verdict.gapMs)}</N> s {verdict.gapMs > 0 ? 'slower' : 'faster'}</>}</span>
               {verdict.gapMs === 0 ? ' with ' : ' than '}
-              <Swatch colour={refCompared?.colour ?? 'var(--muted)'} dashed /> <b>{refLabel}</b>
+              <b>{refLabel}</b>
               <span className="dim"> (ref)</span>
             </p>
             {others.length > 1 && (
@@ -74,8 +76,8 @@ export function Verdict({ verdict, focus, others, refCompared, refLap, refLabel,
                   <button className={`zone${activeZone === i ? ' on' : ''}`} aria-pressed={activeZone === i} onClick={() => onZone(i)}
                     title={activeZone === i ? 'Show the whole lap again' : 'Zoom every chart to this stretch'}>
                     <span className="zone-n num" aria-hidden>{i + 1}</span>
-                    <span className="zone-where num">{where(z)}</span>
-                    <span className="zone-ms num lost">+{seconds(z.ms)}</span>
+                    <span className="zone-where">{where(z)}</span>
+                    <span className="zone-ms lost"><N>+{secs(z.ms)}</N> s</span>
                     <span className="zone-why">{z.why.length ? z.why.join(' · ') : 'no single channel stands out; compare the traces'}</span>
                   </button>
                 </li>
@@ -85,9 +87,9 @@ export function Verdict({ verdict, focus, others, refCompared, refLap, refLabel,
             <p className="verdict-note">No stretch loses more than 0.015 s; the gap is spread evenly round the lap.</p>
           )}
 
-          <p className="verdict-note num">
-            {verdict.gain && <><span className="gained">−{seconds(verdict.gain.ms)}</span> gained at {where(verdict.gain)}{verdict.gain.why.length ? <span className="dim"> · {verdict.gain.why.join(' · ')}</span> : null}<span className="sep" aria-hidden> / </span></>}
-            <span className={elsewhere > 0 ? 'lost' : elsewhere < 0 ? 'gained' : ''}>{fmtDelta(elsewhere)}</span> over the rest of the lap
+          <p className="verdict-note">
+            {verdict.gain && <><span className="gained"><N>−{secs(verdict.gain.ms)}</N> s</span> gained at {where(verdict.gain)}{verdict.gain.why.length ? <span className="dim"> · {verdict.gain.why.join(' · ')}</span> : null}<span className="sep" aria-hidden> · </span></>}
+            <span className={elsewhere > 0 ? 'lost' : elsewhere < 0 ? 'gained' : ''}><N>{fmtDelta(elsewhere)}</N> s</span> over the rest of the lap
           </p>
         </>
       )}

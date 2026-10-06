@@ -4,7 +4,7 @@ import type { LapView } from '../../laps/lapView.ts';
 import { theoreticalBest, type Lap } from '../../laps/lapMath.ts';
 import { hasTelemetry, verdict as findVerdict } from '../../laps/lossZones.ts';
 import { code } from '../../lib/format.ts';
-import { LAP_COLOURS, type Range } from '../../lib/chart.ts';
+import { C, LAP_COLOURS, type Range } from '../../lib/chart.ts';
 import { team } from '../../lib/meta.ts';
 import { LapRail, type Filter } from './LapRail.tsx';
 import { Verdict } from './Verdict.tsx';
@@ -73,6 +73,7 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView })
   const [touched, setTouched] = useState(false);
   const [zoom, setZoom] = useState<Range | null>(null);
   const [activeZone, setActiveZone] = useState<number | null>(null);
+  const [preset, setPreset] = useState<string | null>(null);
 
   // Until you pick something: your fastest lap as the reference against your latest.
   const latestTimed = timed.at(-1)?.id;
@@ -88,14 +89,16 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView })
   };
   const labelOf = (l: Lap) => (l.carIdx === store.playerIdx ? `L${l.lap}` : `${code(ownerOf(l).name)} L${l.lap}`);
 
-  const select = (ids: number[], ref?: number) => {
+  const select = (ids: number[], ref?: number, name: string | null = null) => {
     setTouched(true);
+    setPreset(name);
     setSelected(ids.slice(0, LAP_COLOURS.length).map((id, slot) => ({ id, slot })));
     if (ref !== undefined) setRefId(ref);
     setFocusId(null);
   };
   const toggle = (id: number) => {
     setTouched(true);
+    setPreset(null);
     setSelected((prev) => {
       if (prev.some((s) => s.id === id)) return prev.filter((s) => s.id !== id);
       const used = new Set(prev.map((s) => s.slot));
@@ -105,15 +108,18 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView })
   };
   const setRef = (id: number) => {
     setTouched(true);
+    setPreset(null);
     setRefId(id);
     // The reference is always drawn, so make sure it is compared.
     if (!selected.some((s) => s.id === id)) toggle(id);
   };
 
   const refLap = everyLap.find((l) => l.id === (refId ?? fastest?.id) && usable(l)) ?? null;
+  // The reference is neutral wherever it appears; the laps measured against it carry the colour.
+  const colourOfLap = (id: number, slot: number) => (id === refLap?.id ? C.ref : LAP_COLOURS[slot]);
   const compared: Compared[] = selected.flatMap((s) => {
     const lap = everyLap.find((l) => l.id === s.id);
-    return lap && hasTelemetry(lap) ? [{ lap, colour: LAP_COLOURS[s.slot], label: labelOf(lap) }] : [];
+    return lap && hasTelemetry(lap) ? [{ lap, colour: colourOfLap(lap.id, s.slot), label: labelOf(lap) }] : [];
   });
   const refCompared = compared.find((c) => c.lap.id === refLap?.id) ?? null;
   const others = compared.filter((c) => c !== refCompared);
@@ -157,11 +163,11 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView })
       <LapRail
         laps={laps} driverLaps={driverLaps} filter={filter} onFilter={setFilter}
         ownerOf={ownerOf} labelOf={labelOf} bests={bests} refLap={refLap}
-        selected={selected} onToggle={toggle} onRef={setRef}
+        selected={selected} onToggle={toggle} onRef={setRef} activePreset={preset} slotColour={(id, slot) => colourOfLap(id, slot)}
         presets={{
-          bestVsLast: fastest && laps.length > 1 ? () => select([fastest.id, ...laps.filter((l) => l.kind === 'timed' && l.id !== fastest.id).slice(-3).map((l) => l.id)], fastest.id) : null,
-          meVsFastest: fastest && fastestDriver && usable(fastestDriver) ? () => select([fastest.id, fastestDriver.id], fastestDriver.id) : null,
-          meVsTop3: fastest && driverLaps.some(usable) ? () => { const top = driverLaps.filter(usable).slice(0, 3); select([fastest.id, ...top.map((l) => l.id)], top[0].id); } : null,
+          bestVsLast: fastest && laps.length > 1 ? () => select([fastest.id, ...laps.filter((l) => l.kind === 'timed' && l.id !== fastest.id).slice(-3).map((l) => l.id)], fastest.id, 'bestVsLast') : null,
+          meVsFastest: fastest && fastestDriver && usable(fastestDriver) ? () => select([fastest.id, fastestDriver.id], fastestDriver.id, 'meVsFastest') : null,
+          meVsTop3: fastest && driverLaps.some(usable) ? () => { const top = driverLaps.filter(usable).slice(0, 3); select([fastest.id, ...top.map((l) => l.id)], top[0].id, 'meVsTop3'); } : null,
           clear: selected.length ? () => select([]) : null,
         }}
       />
@@ -194,7 +200,7 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView })
 
         <section className="a-section" aria-labelledby="h-data">
           <LapTable headingId="h-data" laps={laps} driverLaps={driverLaps} ownerOf={ownerOf} bests={bests}
-            refLap={refLap} colourOf={(id) => { const s = selected.find((x) => x.id === id); return s ? LAP_COLOURS[s.slot] : null; }} />
+            refLap={refLap} colourOf={(id) => { const s = selected.find((x) => x.id === id); return s ? colourOfLap(id, s.slot) : null; }} />
         </section>
       </div>
     </div>

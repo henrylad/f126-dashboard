@@ -366,6 +366,8 @@ body {
 
 .analysis { display: grid; grid-template-columns: 320px minmax(0, 1fr); height: 100%; min-height: 0; }
 .analysis-main { overflow-y: auto; min-width: 0; }
+/* Each scroll area contains its own absolutely positioned (screen-reader) text. */
+.analysis-main, .rail { position: relative; }
 .tab-body:has(> .analysis) { overflow: hidden; }
 
 /* rail */
@@ -387,6 +389,7 @@ body {
 }
 .presets button:hover:not(:disabled) { border-color: var(--muted); }
 .presets button:disabled { opacity: 0.45; cursor: default; }
+.presets button.on { border-color: var(--blue); color: var(--text); background: rgba(31, 111, 235, 0.18); }
 .presets button.quiet { background: none; border-color: transparent; color: var(--muted); }
 .presets button.quiet:hover:not(:disabled) { color: var(--text); border-color: var(--line-strong); }
 .rail-note { margin: 10px 0 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
@@ -420,7 +423,8 @@ body {
 }
 .ref-btn:not(.on) { opacity: 0; }
 .rail-row:hover .ref-btn:not(:disabled), .rail-row:focus-within .ref-btn:not(:disabled) { opacity: 1; border-color: var(--line-strong); color: var(--muted); }
-@media (hover: none) { .ref-btn:not(.on) { opacity: 1; } }
+/* Touch has no hover: offer Ref only on the laps being compared. */
+@media (hover: none) { .rail-row.on .ref-btn:not(:disabled) { opacity: 1; border-color: var(--line-strong); color: var(--muted); } }
 .ref-btn:hover:not(:disabled) { color: var(--text); }
 .ref-btn.on, .rail-row:hover .ref-btn.on { color: var(--text); border: 1px dashed var(--muted); background: var(--panel-2); }
 .rail-row .ref-btn:disabled { opacity: 0; cursor: default; }
@@ -440,6 +444,7 @@ body {
 .verdict-line.muted { font-size: 16px; }
 .verdict-line b { font-weight: 600; }
 .verdict-line .gap { font-weight: 600; }
+.verdict-line .gap .num { font-size: 22px; }
 .verdict-line .sw { vertical-align: 2px; }
 .verdict-line .sw.dashed { vertical-align: 5px; }
 .zones { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
@@ -458,6 +463,7 @@ body {
 }
 .zone.on .zone-n { background: var(--red-soft); color: var(--bg); }
 .zone-ms { font-weight: 600; text-align: right; }
+.zone-where .num, .zone-ms .num { font-size: 13px; }
 .zone-why { color: var(--muted); }
 .verdict-note { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
 .verdict-note .sep { color: var(--line-strong); }
@@ -469,10 +475,10 @@ body {
 
 /* telemetry */
 .readout {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; min-height: 34px;
-  padding: 6px 10px; margin-bottom: 8px; font-size: 12px;
-  background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; min-height: 36px;
+  padding: 8px 0 0 64px; margin-top: 2px; font-size: 12px; border-top: 1px solid var(--line);
 }
+.tool-hint { font-size: 12px; color: var(--dim); }
 .readout-hint { font-family: var(--font); }
 .readout-d { color: var(--text); font-weight: 600; min-width: 56px; }
 .readout-lap { display: inline-flex; align-items: center; gap: 8px; }
@@ -503,7 +509,8 @@ body {
 .energy-labels li { display: flex; align-items: center; white-space: nowrap; overflow: hidden; }
 
 /* lap data */
-.data-wrap { overflow: auto; max-height: 520px; border: 1px solid var(--line); border-radius: var(--radius); }
+.data-wrap { overflow: auto; max-height: 520px; border-top: 1px solid var(--line); margin: 0 -20px; }
+.data-table tbody th.left, .data-table thead th.left button { padding-left: 20px; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .data-table thead th {
   position: sticky; top: 0; z-index: 1; background: var(--panel-2);
@@ -524,7 +531,8 @@ body {
 .data-table td small { margin-left: 8px; font-size: 12px; }
 .lap-name { display: inline-flex; align-items: center; gap: 6px; }
 .lap-name b { font-weight: 600; }
-.best-mark { color: var(--purple); font-size: 8px; margin-left: 4px; vertical-align: 2px; }
+.best-mark { fill: var(--purple); margin-left: 5px; vertical-align: 1px; }
+.sort-arrow { margin-left: 4px; vertical-align: -1px; }
 .tyre-cell { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
 .tyre-cell small { color: var(--dim); font-size: 11px; }
 
@@ -538,7 +546,13 @@ body {
   .zone-why { grid-column: 2 / -1; }
 }
 @media (max-width: 860px) {
-  .analysis { display: block; height: auto; }
+  /* The answer first; the lap list follows it. */
+  .analysis { display: flex; flex-direction: column; height: auto; }
+  .analysis-main { order: 1; }
+  .rail { order: 2; }
+  .readout { padding-left: 0; }
+  .tool-hint { display: none; }
+  .data-wrap { margin: 0 -16px; }
   .tab-body:has(> .analysis) { overflow-y: auto; }
   .analysis-main { overflow: visible; }
   .rail { border-right: 0; border-bottom: 1px solid var(--line); }

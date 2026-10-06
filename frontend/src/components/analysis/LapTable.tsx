@@ -57,7 +57,16 @@ interface Props {
   colourOf: (id: number) => string | null;
 }
 
-const Best = () => <span className="best-mark" aria-label="session best">●</span>;
+/** Session-best mark: a drawn dot, with its meaning for screen readers. */
+const Best = () => (
+  <svg className="best-mark" viewBox="0 0 8 8" width="7" height="7" role="img" aria-label="session best"><circle cx="4" cy="4" r="3.5" /></svg>
+);
+/** Sort direction: a 1.5px chevron in the table's stroke weight. */
+const Arrow = ({ dir }: { dir: 1 | -1 }) => (
+  <svg className="sort-arrow" viewBox="0 0 10 10" width="10" height="10" aria-hidden>
+    <path d={dir === 1 ? 'M2 6.5 5 3.5 8 6.5' : 'M2 3.5 5 6.5 8 3.5'} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 export function LapTable({ headingId, laps, driverLaps, ownerOf, bests, refLap, colourOf }: Props) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'order', dir: 1 });
@@ -76,11 +85,11 @@ export function LapTable({ headingId, laps, driverLaps, ownerOf, bests, refLap, 
   const header = (
     <tr>
       <th scope="col" className="left">
-        <button onClick={() => onSort('order')} aria-label="Sort by lap order">Lap{sort.key === 'order' ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}</button>
+        <button onClick={() => onSort('order')} aria-label="Sort by lap order">Lap{sort.key === 'order' && <Arrow dir={sort.dir} />}</button>
       </th>
       {cols.map((c) => (
         <th key={c.key} scope="col" title={c.title} className={sort.key === c.key ? 'sorted' : ''} aria-sort={sort.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
-          <button onClick={() => onSort(c.key)}>{c.label}{sort.key === c.key ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}</button>
+          <button onClick={() => onSort(c.key)}>{c.label}{sort.key === c.key && <Arrow dir={sort.dir} />}</button>
         </th>
       ))}
       {all && <th scope="col" title="Tyre compound and age in laps at the end of the lap">Tyre</th>}
@@ -142,7 +151,7 @@ export function LapTable({ headingId, laps, driverLaps, ownerOf, bests, refLap, 
     <>
       <div className="section-head">
         <h2 id={headingId}>Lap data</h2>
-        <span className="aside"><span className="purple">●</span> session best across all drivers · gaps to the reference</span>
+        <span className="aside"><Best /> session best across all drivers · gaps to the reference</span>
         <span className="head-tools">
           <button className="btn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? 'Fewer columns' : 'All columns'}</button>
         </span>

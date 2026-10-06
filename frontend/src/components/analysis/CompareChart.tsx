@@ -63,7 +63,7 @@ export function CompareChart({ headingId, laps, refLap, focusId, session, zones,
   const others = laps.filter((c) => c !== refCompared);
   // Focus lap drawn last among the others so it sits on top of them; the reference on top of all.
   const ordered = [...others.filter((c) => c.lap.id !== focusId), ...others.filter((c) => c.lap.id === focusId)];
-  const deltas = refLap ? ordered.map((c) => ({ c, pts: deltaTo(c.lap, refLap) })) : [];
+  const deltas = refLap ? ordered.map((c) => ({ c, pts: deltaTo(c.lap, refLap, len) })) : [];
   const diff = mode === 'difference' && refLap;
 
   const { panels, bottom } = layoutPanels<Channel | 'delta'>([
@@ -71,8 +71,8 @@ export function CompareChart({ headingId, laps, refLap, focusId, session, zones,
     ['speed', diff ? 'Speed vs ref, km/h' : CHANNELS.speed.label, 0.27],
     ['throttle', CHANNELS.throttle.label, 0.11],
     ['brake', CHANNELS.brake.label, 0.11],
-    ['gear', CHANNELS.gear.label, 0.08],
-    ['ers', CHANNELS.ers.label, 0.13],
+    ['gear', CHANNELS.gear.label, 0.09],
+    ['ers', CHANNELS.ers.label, 0.12],
   ], MARGIN.t, size.h - MARGIN.t - MARGIN.b, 14);
   const geo = { margin: MARGIN, plotW: size.w - MARGIN.l - MARGIN.r, range };
 
@@ -105,8 +105,9 @@ export function CompareChart({ headingId, laps, refLap, focusId, session, zones,
         continue;
       }
       drawChannelGrid(f, cp);
-      for (const c of ordered) drawSeries(f, cp, c.lap.samples, c.colour, { width: 1.5 });
-      if (refCompared) drawSeries(f, cp, refCompared.lap.samples, refCompared.colour, { dashed: true, width: 1.75, halo: true });
+      // Reference first, thin and dashed in neutral; the lap being explained last, haloed, on top.
+      if (refCompared) drawSeries(f, cp, refCompared.lap.samples, refCompared.colour, { dashed: true, width: 1.25 });
+      for (const c of ordered) drawSeries(f, cp, c.lap.samples, c.colour, { width: 1.75, halo: c.lap.id === focusId });
     }
     drawDistanceAxis(f, session.sector2Start, session.sector3Start, MARGIN.t, bottom, MINI_SECTORS);
     if (brush) drawBrush(f, brush.a, brush.b, MARGIN.t, bottom);
@@ -194,6 +195,7 @@ export function CompareChart({ headingId, laps, refLap, focusId, session, zones,
           ))}
         </span>
         <span className="head-tools">
+          <span className="tool-hint" id="chart-keys">Drag to zoom · ← → step · Esc whole lap</span>
           <span className="seg" role="group" aria-label="Speed panel">
             <button className={mode === 'overlay' ? 'on' : ''} aria-pressed={mode === 'overlay'} onClick={() => setMode('overlay')}>Overlay</button>
             <button className={mode === 'difference' ? 'on' : ''} aria-pressed={mode === 'difference'} disabled={!refLap} onClick={() => setMode('difference')}
@@ -205,9 +207,17 @@ export function CompareChart({ headingId, laps, refLap, focusId, session, zones,
         </span>
       </div>
 
+      <div
+        className="compare-canvas" tabIndex={0} role="img" aria-describedby="chart-keys"
+        aria-label={`Gap to the reference and speed, throttle, brake, gear and battery for ${laps.map((c) => c.label).join(', ') || 'no laps'}, from ${Math.round(range.from)} to ${Math.round(range.to)} m. The loss list above describes the same data in words.`}
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
+        onPointerLeave={() => { if (!brush) setCursor(null); }} onDoubleClick={() => onZoom(null)} onKeyDown={onKey}
+      >
+        <canvas ref={canvas} />
+      </div>
       <div className="readout num" aria-live="off">
         {cursor === null || !laps.length ? (
-          <span className="dim readout-hint">Hover the chart, or focus it and use ← → (Shift for 100 m). Drag or press + to zoom, Esc for the whole lap.</span>
+          <span className="dim readout-hint">Point at the chart to read every lap at that spot.</span>
         ) : (
           <>
             <span className="readout-d">{Math.round(cursor)} m</span>
@@ -233,14 +243,6 @@ export function CompareChart({ headingId, laps, refLap, focusId, session, zones,
         )}
       </div>
 
-      <div
-        className="compare-canvas" tabIndex={0} role="img"
-        aria-label={`Gap to the reference and speed, throttle, brake, gear and battery for ${laps.map((c) => c.label).join(', ') || 'no laps'}, from ${Math.round(range.from)} to ${Math.round(range.to)} m. The loss list above describes the same data in words.`}
-        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
-        onPointerLeave={() => { if (!brush) setCursor(null); }} onDoubleClick={() => onZoom(null)} onKeyDown={onKey}
-      >
-        <canvas ref={canvas} />
-      </div>
     </>
   );
 }

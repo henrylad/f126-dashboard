@@ -4,13 +4,18 @@ import { MINI_SECTORS } from './lapView.ts';
 
 export interface DeltaPoint { d: number; ms: number }
 
-/** Time difference to the reference lap along the lap distance (above zero = slower). */
-export function deltaTo(lap: Lap, ref: Lap): DeltaPoint[] {
+/**
+ * Time difference to the reference lap along the lap distance (above zero =
+ * slower). Samples stop short of the line, so the trace ends on the lap-time
+ * gap itself at `len`, the same number the verdict states.
+ */
+export function deltaTo(lap: Lap, ref: Lap, len?: number): DeltaPoint[] {
   const out: DeltaPoint[] = [];
   for (const s of lap.samples) {
     const t = interpolate(ref.samples, s.d, 't');
     if (t !== null) out.push({ d: s.d, ms: s.t - t });
   }
+  if (len && out.length && lap.kind === 'timed' && ref.kind === 'timed') out.push({ d: len, ms: lap.timeMs - ref.timeMs });
   return out;
 }
 
@@ -140,11 +145,29 @@ export interface Verdict {
   gain: Zone | null;
 }
 
+/**
+ * Neighbouring zones that share their main cause are one place on track: join
+ * them, so the three items the driver reads are three different places.
+ */
+function mergeTouching(lap: Lap, ref: Lap, zones: Zone[], len: number, s2: number, s3: number, pts: DeltaPoint[]): Zone[] {
+  const byPos = [...zones].sort((a, b) => a.from - b.from);
+  const out: Zone[] = [];
+  for (const z of byPos) {
+    const prev = out.at(-1);
+    if (prev && z.from - prev.to <= STEP_M * 2 && (prev.why[0] ?? '') === (z.why[0] ?? '')) {
+      const i = pts.findIndex((p) => p.d === prev.from), j = pts.findIndex((p) => p.d === z.to);
+      out[out.length - 1] = toZone(lap, ref, pts, { i, j, ms: prev.ms + z.ms }, len, s2, s3);
+    } else out.push(z);
+  }
+  return out.sort((a, b) => b.ms - a.ms);
+}
+
 export function verdict(lap: Lap, ref: Lap, len: number, s2: number, s3: number): Verdict {
   const pts = gridDelta(lap, ref, len);
+  const candidates = findZones(pts, len, 5, false).map((z) => toZone(lap, ref, pts, z, len, s2, s3));
   return {
     gapMs: lap.timeMs - ref.timeMs,
-    losses: findZones(pts, len, 3, false).map((z) => toZone(lap, ref, pts, z, len, s2, s3)),
+    losses: mergeTouching(lap, ref, candidates, len, s2, s3, pts).slice(0, 3),
     gain: findZones(pts, len, 1, true).map((z) => toZone(lap, ref, pts, z, len, s2, s3))[0] ?? null,
   };
 }
