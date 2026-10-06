@@ -1,19 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ENERGY } from '../../lib/meta.ts';
 import { energyBins } from '../../lib/energy.ts';
-import { observeSize } from '../../lib/chart.ts';
+import { observeSize, type Range } from '../../lib/chart.ts';
 import type { Compared } from './CompareChart.tsx';
 
-const BINS = 300;
-const ROW_H = 18;
-const ROW_GAP = 6;
-const LABEL_W = 72;
+/** Fine enough to stay crisp when the charts zoom to a corner. */
+const BINS = 1200;
+const ROW_H = 16;
+const ROW_GAP = 8;
+const NO_FLOW = '#1b212b';
 
 /** One strip per lap showing where the battery harvested, deployed or boosted. */
-export function EnergyCompare({ laps, trackLength }: { laps: Compared[]; trackLength: number }) {
+export function EnergyCompare({ headingId, laps, trackLength, range }: { headingId: string; laps: Compared[]; trackLength: number; range: Range }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [w, setW] = useState(0);
-  const height = Math.max(1, laps.length) * (ROW_H + ROW_GAP);
+  const height = Math.max(1, laps.length) * (ROW_H + ROW_GAP) - ROW_GAP;
+  const ids = laps.map((c) => c.lap.id).join();
+  const bins = useMemo(() => laps.map((c) => energyBins(c.lap.samples, trackLength, BINS)), [ids, trackLength]);
 
   useEffect(() => observeSize(canvas.current!, (s) => setW(s.w)), []);
 
@@ -26,37 +29,40 @@ export function EnergyCompare({ laps, trackLength }: { laps: Compared[]; trackLe
     const g = el.getContext('2d')!;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, height);
-    g.font = '500 11px "Geist Variable", system-ui, sans-serif';
-    const plotW = w - LABEL_W - 12;
-    laps.forEach(({ lap, colour, label }, row) => {
+    const span = Math.max(1, range.to - range.from);
+    const xOf = (d: number) => ((d - range.from) / span) * w;
+    laps.forEach((_, row) => {
       const y = row * (ROW_H + ROW_GAP);
-      g.fillStyle = colour;
-      g.fillRect(0, y + 4, 8, ROW_H - 8);
-      g.fillStyle = '#e6edf3';
-      g.textBaseline = 'middle';
-      g.fillText(label, 14, y + ROW_H / 2);
-      g.fillStyle = '#1b212b';
-      g.fillRect(LABEL_W, y, plotW, ROW_H);
-      const bins = energyBins(lap.samples, trackLength, BINS);
+      g.fillStyle = NO_FLOW;
+      g.fillRect(0, y, w, ROW_H);
       for (let b = 0; b < BINS; b++) {
-        const key = bins[b];
+        const key = bins[row]?.[b];
         if (!key) continue;
+        const d0 = (b / BINS) * trackLength, d1 = ((b + 1) / BINS) * trackLength;
+        if (d1 < range.from || d0 > range.to) continue;
         g.fillStyle = ENERGY.find((e) => e.key === key)!.colour;
-        g.fillRect(LABEL_W + (b / BINS) * plotW, y, plotW / BINS + 0.5, ROW_H);
+        g.fillRect(xOf(d0), y, xOf(d1) - xOf(d0) + 0.5, ROW_H);
       }
     });
   });
 
   return (
     <>
-      <div className="legend" style={{ marginBottom: 8 }}>
-        {ENERGY.map((e) => <span key={e.key}><i style={{ background: e.colour, height: 8 }} />{e.label}</span>)}
-        <span><i style={{ background: '#1b212b', height: 8 }} />No flow</span>
+      <div className="section-head">
+        <h2 id={headingId}>Energy</h2>
+        <span className="legend">
+          {ENERGY.map((e) => <span key={e.key}><i className="blk" style={{ background: e.colour }} />{e.label}</span>)}
+          <span><i className="blk" style={{ background: NO_FLOW, boxShadow: 'inset 0 0 0 1px #353d49' }} />No flow</span>
+        </span>
       </div>
-      <div style={{ height }}>
-        <canvas ref={canvas} style={{ width: '100%', height }} role="img" aria-label="Energy use along each selected lap" />
+      <div className="energy-rows" hidden={!laps.length}>
+        <ul className="energy-labels" aria-hidden>
+          {laps.map((c) => <li key={c.lap.id} style={{ height: ROW_H }}><i className="sw" style={{ background: c.colour }} />{c.label}</li>)}
+        </ul>
+        <canvas ref={canvas} style={{ height }} role="img"
+          aria-label={`Where ${laps.map((c) => c.label).join(', ')} harvested, deployed and used Boost, ${Math.round(range.from)} to ${Math.round(range.to)} m`} />
       </div>
-      {!laps.length && <p className="dim">Select laps in the table to compare their energy use.</p>}
+      {!laps.length && <p className="section-note">Tick laps in the list to compare where they harvested, deployed and used Boost.</p>}
     </>
   );
 }

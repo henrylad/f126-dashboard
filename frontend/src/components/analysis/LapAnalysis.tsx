@@ -1,62 +1,98 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Snapshot } from '../../api/types.ts';
 import type { LapView } from '../../laps/lapView.ts';
 import { theoreticalBest, type Lap } from '../../laps/lapMath.ts';
-import { code, delta as fmtDelta, lapTime, sectorTime } from '../../lib/format.ts';
-import { LAP_COLOURS } from '../../lib/chart.ts';
+import { hasTelemetry, verdict as findVerdict } from '../../laps/lossZones.ts';
+import { code } from '../../lib/format.ts';
+import { LAP_COLOURS, type Range } from '../../lib/chart.ts';
 import { team } from '../../lib/meta.ts';
-import { LapTable, sortValue, type Owner, type SortKey } from './LapTable.tsx';
+import { LapRail, type Filter } from './LapRail.tsx';
+import { Verdict } from './Verdict.tsx';
 import { CompareChart, type Compared } from './CompareChart.tsx';
 import { MiniCompare } from './MiniCompare.tsx';
 import { EnergyCompare } from './EnergyCompare.tsx';
-
-type Filter = 'all' | 'valid' | 'fastest5';
-const FILTERS: [Filter, string][] = [['all', 'All laps'], ['valid', 'Valid only'], ['fastest5', 'Fastest 5']];
-/** Columns where bigger is better sort descending first. */
-const DESC_FIRST = new Set<SortKey>(['top', 'throttle', 'harvested']);
+import { LapTable } from './LapTable.tsx';
 
 const byTime = (a: Lap, b: Lap) => a.timeMs - b.timeMs;
+const usable = (l: Lap) => l.kind === 'timed' && hasTelemetry(l);
+const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-function sortLaps(laps: Lap[], sort: { key: SortKey; dir: 1 | -1 }): Lap[] {
-  return [...laps].sort((a, b) => {
-    const va = sortValue(a, sort.key), vb = sortValue(b, sort.key);
-    if (va === null) return vb === null ? 0 : 1;
-    if (vb === null) return -1;
-    return (va - vb) * sort.dir;
-  });
+/** Session bests across every valid lap on the tab, yours and other drivers'. */
+export interface Bests { time: number | null; sectors: (number | null)[]; top: number | null; yourTime: number | null }
+
+function sessionBests(own: Lap[], others: Lap[]): Bests {
+  const timed = [...own, ...others].filter((l) => l.kind === 'timed');
+  const min = (v: (number | null)[]) => {
+    const xs = v.filter((x): x is number => x !== null && x > 0);
+    return xs.length ? Math.min(...xs) : null;
+  };
+  return {
+    time: min(timed.map((l) => l.timeMs)),
+    sectors: [0, 1, 2].map((i) => min(timed.map((l) => l.sectors[i]))),
+    top: timed.length ? Math.max(...timed.map((l) => l.stats.topSpeed)) : null,
+    yourTime: min(own.filter((l) => l.kind === 'timed').map((l) => l.timeMs)),
+  };
+}
+
+/** Eases the shown distance range towards the target (one axis, no overshoot). */
+function useEasedRange(target: Range): Range {
+  const [shown, setShown] = useState(target);
+  const from = useRef(target);
+  useEffect(() => {
+    if (reducedMotion()) { setShown(target); return; }
+    const start = performance.now(), a = from.current;
+    let raf = 0;
+    const step = (now: number) => {
+      const k = Math.min(1, (now - start) / 220);
+      const e = 1 - Math.pow(1 - k, 3);
+      const r = { from: a.from + (target.from - a.from) * e, to: a.to + (target.to - a.to) * e };
+      from.current = r;
+      setShown(r);
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target.from, target.to]);
+  return shown;
 }
 
 export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView }) {
+  const session = snap.session!;
+  const len = session.trackLength || 1;
   const laps = store.laps;
-  const timed = laps.filter((l) => l.kind === 'timed');
-  const [filter, setFilter] = useState<Filter>('all');
-  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'id', dir: 1 });
-  const [driverSort, setDriverSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'time', dir: 1 });
   const driverLaps = store.driverBests();
   const everyLap = [...laps, ...driverLaps];
-  const ownerOf = (l: Lap): Owner => {
-    const car = snap.cars.find((c) => c.idx === l.carIdx);
-    return { name: car?.name ?? `Car ${l.carIdx + 1}`, colour: car ? team(car.teamId).colour : '#8d98c7' };
-  };
-  const labelOf = (l: Lap) => (l.carIdx === store.playerIdx ? `L${l.lap}` : `${code(ownerOf(l).name)} L${l.lap}`);
+  const timed = laps.filter((l) => l.kind === 'timed');
+  const fastest = timed.length ? [...timed].sort(byTime)[0] : null;
+
+  const [filter, setFilter] = useState<Filter>('all');
   // Selected laps keep their colour slot while selected (colour follows the lap).
   const [selected, setSelected] = useState<{ id: number; slot: number }[]>([]);
   const [refId, setRefId] = useState<number | null>(null);
+  const [focusId, setFocusId] = useState<number | null>(null);
   const [touched, setTouched] = useState(false);
+  const [zoom, setZoom] = useState<Range | null>(null);
+  const [activeZone, setActiveZone] = useState<number | null>(null);
 
-  // Start with fastest vs latest valid lap until the user picks something.
+  // Until you pick something: your fastest lap as the reference against your latest.
   const latestTimed = timed.at(-1)?.id;
-  const fastest = timed.length ? [...timed].sort(byTime)[0] : null;
   useEffect(() => {
     if (touched || !fastest) return;
     const ids = [fastest.id, ...(latestTimed !== undefined && latestTimed !== fastest.id ? [latestTimed] : [])];
     setSelected(ids.map((id, slot) => ({ id, slot })));
   }, [touched, fastest?.id, latestTimed]);
 
+  const ownerOf = (l: Lap) => {
+    const car = snap.cars.find((c) => c.idx === l.carIdx);
+    return { name: car?.name ?? `Car ${l.carIdx + 1}`, colour: car ? team(car.teamId).colour : '#808a96' };
+  };
+  const labelOf = (l: Lap) => (l.carIdx === store.playerIdx ? `L${l.lap}` : `${code(ownerOf(l).name)} L${l.lap}`);
+
   const select = (ids: number[], ref?: number) => {
     setTouched(true);
     setSelected(ids.slice(0, LAP_COLOURS.length).map((id, slot) => ({ id, slot })));
     if (ref !== undefined) setRefId(ref);
+    setFocusId(null);
   };
   const toggle = (id: number) => {
     setTouched(true);
@@ -64,133 +100,103 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView })
       if (prev.some((s) => s.id === id)) return prev.filter((s) => s.id !== id);
       const used = new Set(prev.map((s) => s.slot));
       const slot = LAP_COLOURS.findIndex((_, i) => !used.has(i));
-      if (slot === -1) return [...prev.slice(1), { id, slot: prev[0].slot }]; // full: replace the oldest
-      return [...prev, { id, slot }];
+      return slot === -1 ? prev : [...prev, { id, slot }];
     });
   };
-  const sorter = (set: typeof setSort) => (key: SortKey) =>
-    set((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: DESC_FIRST.has(key) ? -1 : 1 }));
-  const setRef = (id: number) => { setTouched(true); setRefId(id); };
-
-  const fastestDriver = driverLaps[0] ?? null;
-  const refLap = everyLap.find((l) => l.id === (refId ?? fastest?.id)) ?? null;
-  const colourOf = (id: number) => {
-    const s = selected.find((x) => x.id === id);
-    return s ? LAP_COLOURS[s.slot] : null;
+  const setRef = (id: number) => {
+    setTouched(true);
+    setRefId(id);
+    // The reference is always drawn, so make sure it is compared.
+    if (!selected.some((s) => s.id === id)) toggle(id);
   };
+
+  const refLap = everyLap.find((l) => l.id === (refId ?? fastest?.id) && usable(l)) ?? null;
   const compared: Compared[] = selected.flatMap((s) => {
     const lap = everyLap.find((l) => l.id === s.id);
-    return lap ? [{ lap, colour: LAP_COLOURS[s.slot], label: labelOf(lap) }] : [];
+    return lap && hasTelemetry(lap) ? [{ lap, colour: LAP_COLOURS[s.slot], label: labelOf(lap) }] : [];
   });
+  const refCompared = compared.find((c) => c.lap.id === refLap?.id) ?? null;
+  const others = compared.filter((c) => c !== refCompared);
+  const focus = others.find((c) => c.lap.id === focusId) ?? others[0] ?? null;
 
-  const rows = sortLaps(filter === 'all' ? laps : filter === 'valid' ? timed : [...timed].sort(byTime).slice(0, 5), sort);
-  const driverRows = sortLaps(driverLaps, driverSort);
+  const verdict = useMemo(
+    () => (focus && refLap ? findVerdict(focus.lap, refLap, len, session.sector2Start, session.sector3Start) : null),
+    [focus?.lap.id, refLap?.id, len, session.sector2Start, session.sector3Start],
+  );
+  // A new question resets the zoom and the highlighted zone.
+  useEffect(() => { setActiveZone(null); }, [focus?.lap.id, refLap?.id]);
 
-  const theo = theoreticalBest(laps);
-  const bestSector = (i: 0 | 1 | 2) => {
-    const v = timed.map((l) => l.sectors[i]).filter((x): x is number => x !== null);
-    return v.length ? Math.min(...v) : null;
+  const target = zoom ?? { from: 0, to: len };
+  const range = useEasedRange(target);
+  const zoomTo = (r: Range | null) => setZoom(r && r.to - r.from >= 50 ? { from: Math.max(0, r.from), to: Math.min(len, r.to) } : null);
+  const showZone = (i: number) => {
+    const z = verdict?.losses[i];
+    if (!z) return;
+    if (activeZone === i) { setActiveZone(null); zoomTo(null); return; }
+    const pad = Math.max(150, (z.to - z.from) * 0.6);
+    setActiveZone(i);
+    zoomTo({ from: z.from - pad, to: z.to + pad });
   };
-  const bs = [bestSector(0), bestSector(1), bestSector(2)];
-  const ideal = bs.every((x) => x !== null) ? bs.reduce((a, b) => a! + b!, 0)! : null;
-  const topLap = laps.length ? laps.reduce((a, b) => (b.stats.topSpeed > a.stats.topSpeed ? b : a)) : null;
 
-  if (!snap.session) return null;
+  const bests = sessionBests(laps, driverLaps);
+  const theo = theoreticalBest(laps);
+  const fastestDriver = driverLaps.find((l) => l.kind === 'timed') ?? null;
+
   if (!laps.length && !driverLaps.length) {
     return (
       <div className="empty">
         <h1>No laps yet</h1>
-        <p>Every lap you complete this session shows up here — lap and sector times, mini sectors, telemetry and energy use — ready to compare.</p>
+        <p>Every lap you finish shows up here. Pick two and this tab shows how much time you lost, where on the lap, and what the telemetry did differently there.</p>
+        <p className="dim">Other drivers' fastest laps appear as soon as they set one.</p>
       </div>
     );
   }
 
   return (
     <div className="analysis">
-      <section className="cards">
-        <Card k="Laps" v={`${laps.length}`} s={`${timed.length} valid`} />
-        <Card k="Best lap" v={fastest ? lapTime(fastest.timeMs) : '—'} s={fastest ? `Lap ${fastest.lap}` : 'No valid lap yet'} purple />
-        <Card k="Theoretical best" v={theo ? lapTime(Math.round(theo)) : '—'} s={theo && fastest ? `${fmtDelta(theo - fastest.timeMs)} · best mini sectors` : 'Best of each mini sector'} />
-        <Card k="Best sectors" v={bs.map((x) => (x === null ? '—' : sectorTime(x))).join(' · ')} s={ideal && fastest ? `Ideal ${lapTime(Math.round(ideal))} (${fmtDelta(ideal - fastest.timeMs)})` : 'S1 · S2 · S3'} />
-        <Card k="Top speed" v={topLap ? `${topLap.stats.topSpeed} km/h` : '—'} s={topLap ? `Lap ${topLap.lap}` : ''} />
-        <Card k="Fastest driver" v={fastestDriver ? lapTime(fastestDriver.timeMs) : '—'}
-          s={fastestDriver ? `${ownerOf(fastestDriver).name}${fastest ? ` · you ${fmtDelta(fastest.timeMs - fastestDriver.timeMs)}` : ''}` : 'No other driver has a valid lap yet'} />
-      </section>
+      <LapRail
+        laps={laps} driverLaps={driverLaps} filter={filter} onFilter={setFilter}
+        ownerOf={ownerOf} labelOf={labelOf} bests={bests} refLap={refLap}
+        selected={selected} onToggle={toggle} onRef={setRef}
+        presets={{
+          bestVsLast: fastest && laps.length > 1 ? () => select([fastest.id, ...laps.filter((l) => l.kind === 'timed' && l.id !== fastest.id).slice(-3).map((l) => l.id)], fastest.id) : null,
+          meVsFastest: fastest && fastestDriver && usable(fastestDriver) ? () => select([fastest.id, fastestDriver.id], fastestDriver.id) : null,
+          meVsTop3: fastest && driverLaps.some(usable) ? () => { const top = driverLaps.filter(usable).slice(0, 3); select([fastest.id, ...top.map((l) => l.id)], top[0].id); } : null,
+          clear: selected.length ? () => select([]) : null,
+        }}
+      />
 
-      <section className="panel">
-        <h2>
-          Laps
-          <span className="aside legend">
-            <span className="seg" role="group" aria-label="Filter laps">
-              {FILTERS.map(([f, label]) => (
-                <button key={f} className={filter === f ? 'on' : ''} onClick={() => setFilter(f)}>{label}</button>
-              ))}
-            </span>
-            <span className="seg" role="group" aria-label="Quick selections">
-              <button disabled={!fastest} onClick={() => fastest && select([fastest.id], fastest.id)}>Fastest lap</button>
-              <button disabled={timed.length < 2} onClick={() => { const f = [...timed].sort(byTime).slice(0, 3); select(f.map((l) => l.id), f[0].id); }}>Fastest 3</button>
-              <button disabled={!fastest} onClick={() => fastest && select([fastest.id, ...laps.slice(-3).map((l) => l.id).filter((id) => id !== fastest.id)], fastest.id)}>Best vs last 3</button>
-              <button onClick={() => select([])}>Clear</button>
-            </span>
-          </span>
-        </h2>
-        <p className="hint">Click rows to compare (up to {LAP_COLOURS.length}). <b>Ref</b> sets the lap the delta is measured against. Click a column to sort.</p>
-        <LapTable laps={rows} allLaps={laps} sort={sort} onSort={sorter(setSort)} colourOf={colourOf} onToggle={toggle} refId={refLap?.id ?? null} onRef={setRef} />
-      </section>
+      <div className="analysis-main">
+        <Verdict
+          verdict={verdict} focus={focus} others={others} refCompared={refCompared} refLap={refLap}
+          refLabel={refLap ? labelOf(refLap) : null} onFocus={setFocusId}
+          activeZone={activeZone} onZone={showZone}
+          yourBest={fastest} theoretical={theo} fastestDriver={fastestDriver} ownerOf={ownerOf} laps={laps}
+        />
 
-      <section className="panel">
-        <h2>
-          Drivers' fastest laps
-          <span className="aside legend">
-            <span className="seg" role="group" aria-label="Compare with drivers">
-              <button disabled={!fastest || !fastestDriver} onClick={() => fastest && fastestDriver && select([fastest.id, fastestDriver.id], fastestDriver.id)}>Me vs fastest</button>
-              <button disabled={!fastest || !fastestDriver} onClick={() => fastest && fastestDriver && select([fastest.id, ...driverLaps.slice(0, 3).map((l) => l.id)], fastestDriver.id)}>Me vs top 3</button>
-            </span>
-          </span>
-        </h2>
-        <p className="hint">Each driver's best valid lap this session, with the same data as yours. Time gap is to <b>your</b> best lap. Select them to compare alongside your laps.</p>
-        {driverLaps.length ? (
-          <LapTable laps={driverRows} allLaps={[...driverLaps, ...timed]} baseline={fastest?.timeMs ?? null} ownerOf={ownerOf}
-            sort={driverSort} onSort={sorter(setDriverSort)} colourOf={colourOf} onToggle={toggle} refId={refLap?.id ?? null} onRef={setRef} />
-        ) : (
-          <p className="dim">No other driver has completed a valid lap yet.</p>
-        )}
-      </section>
+        <section className="a-section" aria-labelledby="h-telemetry">
+          <CompareChart
+            headingId="h-telemetry"
+            laps={compared} refLap={refLap} focusId={focus?.lap.id ?? null} session={session}
+            zones={verdict?.losses ?? []} activeZone={activeZone}
+            range={range} zoomed={zoom !== null} onZoom={(r) => { setActiveZone(null); zoomTo(r); }}
+          />
+        </section>
 
-      <section className="panel">
-        <h2>
-          Telemetry comparison
-          <span className="aside legend">
-            {compared.map((c) => (
-              <span key={c.lap.id}>
-                <i className={c.lap.id === refLap?.id ? 'dash-colour' : ''} style={{ background: c.colour, color: c.colour }} />
-                {c.label} · {lapTime(c.lap.timeMs)}{c.lap.id === refLap?.id ? ' (ref)' : ''}
-              </span>
-            ))}
-          </span>
-        </h2>
-        <CompareChart laps={compared} refLap={refLap} session={snap.session} />
-      </section>
+        <section className="a-section" aria-labelledby="h-minis">
+          <MiniCompare headingId="h-minis" laps={compared} refLap={refLap} len={len} range={zoom}
+            onMini={(k) => { setActiveZone(null); zoomTo({ from: (k * len) / 25 - 60, to: ((k + 1) * len) / 25 + 60 }); }} />
+        </section>
 
-      <section className="panel">
-        <h2>Mini sectors <span className="aside">loss vs the best of your laps and the compared laps · ● = best</span></h2>
-        <MiniCompare laps={compared} allLaps={laps} />
-      </section>
+        <section className="a-section" aria-labelledby="h-energy">
+          <EnergyCompare headingId="h-energy" laps={compared} trackLength={len} range={range} />
+        </section>
 
-      <section className="panel">
-        <h2>Energy use <span className="aside">where each lap harvested, deployed and boosted</span></h2>
-        <EnergyCompare laps={compared} trackLength={snap.session.trackLength} />
-      </section>
-    </div>
-  );
-}
-
-function Card({ k, v, s, purple }: { k: string; v: string; s: string; purple?: boolean }) {
-  return (
-    <div className="panel card">
-      <div className="k">{k}</div>
-      <div className={`v num${purple ? ' purple' : ''}`}>{v}</div>
-      <div className="s">{s}</div>
+        <section className="a-section" aria-labelledby="h-data">
+          <LapTable headingId="h-data" laps={laps} driverLaps={driverLaps} ownerOf={ownerOf} bests={bests}
+            refLap={refLap} colourOf={(id) => { const s = selected.find((x) => x.id === id); return s ? LAP_COLOURS[s.slot] : null; }} />
+        </section>
+      </div>
     </div>
   );
 }

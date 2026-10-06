@@ -1,18 +1,20 @@
+import { useState } from 'react';
 import type { Lap } from '../../laps/lapMath.ts';
 import { compound } from '../../lib/meta.ts';
 import { code, delta as fmtDelta, lapTime, sectorTime } from '../../lib/format.ts';
+import type { Bests } from './LapAnalysis.tsx';
 
-export type SortKey = 'id' | 'time' | 's1' | 's2' | 's3' | 'top' | 'throttle' | 'deployed' | 'harvested' | 'boost' | 'fuel' | 'wear';
+type SortKey = 'order' | 'time' | 's1' | 's2' | 's3' | 'top' | 'throttle' | 'deployed' | 'harvested' | 'boost' | 'fuel' | 'wear';
 
 const KIND_LABEL: Record<Lap['kind'], string> = {
   timed: '', invalid: 'Invalid', out: 'Out-lap', in: 'In-lap', pit: 'Pit', partial: 'Partial',
 };
 
 /** Sort value per column; null sorts last. */
-export function sortValue(l: Lap, key: SortKey): number | null {
+function sortValue(l: Lap, key: SortKey): number | null {
   switch (key) {
-    case 'id': return l.id;
-    case 'time': return l.timeMs || null;
+    case 'order': return l.id;
+    case 'time': return l.kind === 'timed' ? l.timeMs : null;
     case 's1': return l.sectors[0];
     case 's2': return l.sectors[1];
     case 's3': return l.sectors[2];
@@ -26,122 +28,140 @@ export function sortValue(l: Lap, key: SortKey): number | null {
   }
 }
 
-const COLUMNS: { key: SortKey; label: string; title: string }[] = [
-  { key: 'id', label: 'Lap', title: 'Lap number (in driving order)' },
-  { key: 'time', label: 'Time', title: 'Lap time' },
-  { key: 's1', label: 'S1', title: 'Sector 1' },
-  { key: 's2', label: 'S2', title: 'Sector 2' },
-  { key: 's3', label: 'S3', title: 'Sector 3' },
-  { key: 'top', label: 'Top', title: 'Top speed, km/h' },
+/** Columns where bigger is better sort descending first. */
+const DESC_FIRST = new Set<SortKey>(['top', 'throttle', 'harvested']);
+
+const CORE: { key: SortKey; label: string; title: string }[] = [
+  { key: 'time', label: 'Time', title: 'Lap time, and the gap to the reference lap' },
+  { key: 's1', label: 'S1', title: 'Sector 1, s' },
+  { key: 's2', label: 'S2', title: 'Sector 2, s' },
+  { key: 's3', label: 'S3', title: 'Sector 3, s' },
+  { key: 'top', label: 'Top km/h', title: 'Top speed, km/h' },
+];
+const MORE: { key: SortKey; label: string; title: string }[] = [
   { key: 'throttle', label: 'Full thr.', title: 'Share of the lap at full throttle' },
-  { key: 'deployed', label: 'Deploy', title: 'ERS energy deployed, MJ' },
-  { key: 'harvested', label: 'Harvest', title: 'ERS energy harvested, MJ' },
+  { key: 'deployed', label: 'Deploy MJ', title: 'ERS energy deployed, MJ' },
+  { key: 'harvested', label: 'Harvest MJ', title: 'ERS energy harvested, MJ' },
   { key: 'boost', label: 'Boost', title: 'Share of the lap in Boost deploy mode' },
-  { key: 'fuel', label: 'Fuel', title: 'Fuel used, kg' },
+  { key: 'fuel', label: 'Fuel kg', title: 'Fuel used, kg' },
   { key: 'wear', label: 'Wear', title: 'Average tyre wear added this lap' },
 ];
 
-export interface Owner { name: string; colour: string }
-
 interface Props {
+  headingId: string;
   laps: Lap[];
-  /** Laps whose bests are shown purple. */
-  allLaps: Lap[];
-  /** Lap time the Time column's gap is measured against (default: fastest of allLaps). */
-  baseline?: number | null;
-  /** Drivers mode: first column shows the driver instead of the lap kind. */
-  ownerOf?: (lap: Lap) => Owner;
-  sort: { key: SortKey; dir: 1 | -1 };
-  onSort: (key: SortKey) => void;
+  driverLaps: Lap[];
+  ownerOf: (l: Lap) => { name: string; colour: string };
+  bests: Bests;
+  refLap: Lap | null;
   colourOf: (id: number) => string | null;
-  onToggle: (id: number) => void;
-  refId: number | null;
-  onRef: (id: number) => void;
 }
 
-export function LapTable({ laps, allLaps, baseline, ownerOf, sort, onSort, colourOf, onToggle, refId, onRef }: Props) {
-  const timed = allLaps.filter((l) => l.kind === 'timed');
-  // Session bests among valid laps, shown purple.
-  const best = (key: SortKey, pick: 'min' | 'max' = 'min') => {
-    const vals = timed.map((l) => sortValue(l, key)).filter((v): v is number => v !== null);
-    return vals.length ? (pick === 'min' ? Math.min(...vals) : Math.max(...vals)) : null;
+const Best = () => <span className="best-mark" aria-label="session best">●</span>;
+
+export function LapTable({ headingId, laps, driverLaps, ownerOf, bests, refLap, colourOf }: Props) {
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'order', dir: 1 });
+  const [all, setAll] = useState(false);
+  const cols = all ? [...CORE, ...MORE] : CORE;
+  const onSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: DESC_FIRST.has(key) ? -1 : 1 }));
+  const sorted = (ls: Lap[]) => [...ls].sort((a, b) => {
+    const k = sort.key === 'order' && ls === driverLaps ? 'time' : sort.key;
+    const va = sortValue(a, k), vb = sortValue(b, k);
+    if (va === null) return vb === null ? 0 : 1;
+    if (vb === null) return -1;
+    return (va - vb) * sort.dir;
+  });
+
+  const header = (
+    <tr>
+      <th scope="col" className="left">
+        <button onClick={() => onSort('order')} aria-label="Sort by lap order">Lap{sort.key === 'order' ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}</button>
+      </th>
+      {cols.map((c) => (
+        <th key={c.key} scope="col" title={c.title} className={sort.key === c.key ? 'sorted' : ''} aria-sort={sort.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
+          <button onClick={() => onSort(c.key)}>{c.label}{sort.key === c.key ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}</button>
+        </th>
+      ))}
+      {all && <th scope="col" title="Tyre compound and age in laps at the end of the lap">Tyre</th>}
+    </tr>
+  );
+
+  const row = (l: Lap, driver: boolean) => {
+    const colour = colourOf(l.id);
+    const valid = l.kind === 'timed';
+    const gap = valid && refLap && refLap.id !== l.id ? l.timeMs - refLap.timeMs : null;
+    const tyre = compound(l.stats.compound);
+    const owner = driver ? ownerOf(l) : null;
+    const best = (v: number | null, b: number | null) => valid && v !== null && v === b;
+    return (
+      <tr key={l.id} className={valid ? '' : 'untimed'}>
+        <th scope="row" className="left">
+          <span className="lap-name">
+            <i className={`sw${colour ? '' : ' none'}`} style={colour ? { background: colour } : undefined} aria-hidden />
+            {owner ? <><i className="team-dot" style={{ background: owner.colour }} aria-hidden /><b>{code(owner.name)}</b> <span className="dim">L{l.lap}</span></> : <b>L{l.lap}</b>}
+            {KIND_LABEL[l.kind] && <span className="kind">{KIND_LABEL[l.kind]}</span>}
+            {refLap?.id === l.id && <span className="kind ref">Ref</span>}
+          </span>
+        </th>
+        {cols.map((c) => {
+          switch (c.key) {
+            case 'time': return (
+              <td key="time" className={best(l.timeMs, bests.time) ? 'purple' : ''}>
+                {lapTime(l.timeMs)}{best(l.timeMs, bests.time) && <Best />}
+                {gap !== null && <small className={gap > 0 ? 'lost' : gap < 0 ? 'gained' : 'dim'}>{gap === 0 ? '±0.000' : fmtDelta(gap)}</small>}
+              </td>
+            );
+            case 's1': case 's2': case 's3': {
+              const i = +c.key[1] - 1, v = l.sectors[i];
+              return <td key={c.key} className={best(v, bests.sectors[i]) ? 'purple' : ''}>{v === null ? '—' : sectorTime(v)}{best(v, bests.sectors[i]) && <Best />}</td>;
+            }
+            case 'top': return <td key="top" className={best(l.stats.topSpeed, bests.top) ? 'purple' : ''}>{l.stats.topSpeed}{best(l.stats.topSpeed, bests.top) && <Best />}</td>;
+            case 'throttle': return <td key="throttle">{l.stats.fullThrottlePct.toFixed(0)}%</td>;
+            case 'deployed': return <td key="deployed">{(l.stats.deployedJ / 1e6).toFixed(2)}</td>;
+            case 'harvested': return <td key="harvested">{(l.stats.harvestedJ / 1e6).toFixed(2)}</td>;
+            case 'boost': return <td key="boost">{l.stats.boostPct.toFixed(0)}%</td>;
+            case 'fuel': return <td key="fuel">{l.stats.fuelUsedKg === null ? '—' : l.stats.fuelUsedKg.toFixed(2)}</td>;
+            case 'wear': return <td key="wear">{l.stats.wearDeltaPct === null ? '—' : `${l.stats.wearDeltaPct.toFixed(1)}%`}</td>;
+            default: return null;
+          }
+        })}
+        {all && (
+          <td>
+            <span className="tyre-cell">
+              <span className="tyre" style={{ color: tyre.colour }} title={tyre.label}>{tyre.label}</span>
+              <small>{l.stats.tyreAge} laps</small>
+            </span>
+          </td>
+        )}
+      </tr>
+    );
   };
-  const bestTime = best('time'), bestS = [best('s1'), best('s2'), best('s3')], bestTop = best('top', 'max');
-  const gapBase = baseline === undefined ? bestTime : baseline;
 
   return (
-    <div className="lap-table-wrap">
-      <table className="lap-table">
-        <thead>
-          <tr>
-            <th title="Select laps to compare (up to 6)">Cmp</th>
-            <th title="Reference lap for the delta">Ref</th>
-            {COLUMNS.map((c) => ownerOf && c.key === 'id' ? <th key="driver">Driver</th> : (
-              <th key={c.key} title={c.title} className={sort.key === c.key ? 'sorted' : ''} aria-sort={sort.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
-                <button onClick={() => onSort(c.key)}>
-                  {c.label}{sort.key === c.key ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}
-                </button>
-              </th>
-            ))}
-            <th title="Tyre compound and age at the end of the lap">Tyre</th>
-          </tr>
-        </thead>
-        <tbody>
-          {laps.map((l) => {
-            const colour = colourOf(l.id);
-            const valid = l.kind === 'timed';
-            const tyre = compound(l.stats.compound);
-            const dBest = valid && gapBase !== null && gapBase !== undefined ? l.timeMs - gapBase : null;
-            const owner = ownerOf?.(l);
-            return (
-              <tr key={l.id} className={`${colour ? 'selected' : ''} ${valid ? '' : 'untimed'}`} onClick={() => onToggle(l.id)}>
-                <td>
-                  <span className="lap-check" style={colour ? { background: colour, borderColor: colour } : undefined} aria-label={colour ? 'Selected' : 'Not selected'}>
-                    {colour ? '✓' : ''}
-                  </span>
-                </td>
-                <td onClick={(e) => { e.stopPropagation(); if (valid) onRef(l.id); }}>
-                  <input type="radio" name="ref" checked={refId === l.id} disabled={!valid} onChange={() => onRef(l.id)} aria-label={`Use lap ${l.lap} as reference`} />
-                </td>
-                <td className="num">
-                  {owner ? (
-                    <span className="driver-cell" title={owner.name}>
-                      <i style={{ background: owner.colour }} />
-                      <b>{code(owner.name)}</b>
-                      <span className="dim">L{l.lap}</span>
-                    </span>
-                  ) : (
-                    <>
-                      <b>{l.lap}</b>
-                      {KIND_LABEL[l.kind] && <span className="kind">{KIND_LABEL[l.kind]}</span>}
-                    </>
-                  )}
-                </td>
-                <td className={`num ${valid && l.timeMs === bestTime ? 'purple' : ''}`}>
-                  {lapTime(l.timeMs)}
-                  {dBest !== null && dBest !== 0 && <small className={dBest < 0 ? 'faster' : 'dim'}> {fmtDelta(dBest)}</small>}
-                </td>
-                {l.sectors.map((sv, i) => (
-                  <td key={i} className={`num ${valid && sv !== null && sv === bestS[i] ? 'purple' : ''}`}>{sv === null ? '—' : sectorTime(sv)}</td>
-                ))}
-                <td className={`num ${valid && l.stats.topSpeed === bestTop ? 'purple' : ''}`}>{l.stats.topSpeed}</td>
-                <td className="num">{l.stats.fullThrottlePct.toFixed(0)}%</td>
-                <td className="num">{(l.stats.deployedJ / 1e6).toFixed(2)}</td>
-                <td className="num">{(l.stats.harvestedJ / 1e6).toFixed(2)}</td>
-                <td className="num">{l.stats.boostPct.toFixed(0)}%</td>
-                <td className="num">{l.stats.fuelUsedKg === null ? '—' : l.stats.fuelUsedKg.toFixed(2)}</td>
-                <td className="num">{l.stats.wearDeltaPct === null ? '—' : `${l.stats.wearDeltaPct.toFixed(1)}%`}</td>
-                <td>
-                  <span className="tyre-cell" style={{ justifyContent: 'flex-start' }}>
-                    <span className="tyre" style={{ color: tyre.colour }}>{tyre.label}</span>
-                    <small className="num">{l.stats.tyreAge}</small>
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <div className="section-head">
+        <h2 id={headingId}>Lap data</h2>
+        <span className="aside"><span className="purple">●</span> session best across all drivers · gaps to the reference</span>
+        <span className="head-tools">
+          <button className="btn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? 'Fewer columns' : 'All columns'}</button>
+        </span>
+      </div>
+      <div className="data-wrap">
+        <table className="data-table num">
+          <thead>{header}</thead>
+          <tbody>
+            <tr className="group"><th scope="rowgroup" colSpan={cols.length + (all ? 2 : 1)}>Your laps</th></tr>
+            {sorted(laps).map((l) => row(l, false))}
+          </tbody>
+          {driverLaps.length > 0 && (
+            <tbody>
+              <tr className="group"><th scope="rowgroup" colSpan={cols.length + (all ? 2 : 1)}>Drivers' fastest laps</th></tr>
+              {sorted(driverLaps).map((l) => row(l, true))}
+            </tbody>
+          )}
+        </table>
+      </div>
+    </>
   );
 }

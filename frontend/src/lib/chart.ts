@@ -309,16 +309,21 @@ export function drawAeroZones(f: Frame, zones: Zone[], top: number, bottom: numb
   });
 }
 
-/** Loss zones: a faint band over the given panels and a numbered bracket ruled at one device pixel. */
-export function drawZoneBrackets(f: Frame, zones: { from: number; to: number }[], top: number, bottom: number, active: number | null) {
+/**
+ * Loss zones: a band over the delta panel (fainter down the other panels) and a
+ * numbered bracket ruled at one device pixel above it.
+ */
+export function drawZoneBrackets(f: Frame, zones: { from: number; to: number }[], top: number, deltaBottom: number, bottom: number, active: number | null) {
   const { g, xOf } = f;
   const px = 1 / (window.devicePixelRatio || 1);
   clipped(f, top - 14, bottom, () => {
     zones.forEach((z, i) => {
       const x0 = xOf(z.from), x1 = xOf(z.to);
       g.fillStyle = C.zone;
-      g.globalAlpha = active === null || active === i ? 1 : 0.4;
-      g.fillRect(x0, top, x1 - x0, bottom - top);
+      g.globalAlpha = active === null || active === i ? 1 : 0.45;
+      g.fillRect(x0, top, x1 - x0, deltaBottom - top);
+      g.globalAlpha *= 0.35;
+      g.fillRect(x0, deltaBottom, x1 - x0, bottom - deltaBottom);
       g.globalAlpha = 1;
       g.strokeStyle = C.zoneEdge;
       g.lineWidth = active === i ? 1.5 : px;
@@ -345,7 +350,8 @@ const niceStep = (span: number) => [100, 200, 500, 1000].find((s) => span / s <=
  */
 export function drawDistanceAxis(f: Frame, sector2Start: number, sector3Start: number, top: number, bottom: number, minis = 0, sectorLabels: 'top' | 'bottom' = 'bottom') {
   const { g, xOf, len, height, margin, range } = f;
-  const axisY = height - margin.b;
+  // With numbered mini sectors the labels take a second row below them.
+  const labelY = minis ? bottom + 18 : height - margin.b + 6;
   g.save();
   g.font = `500 11px ${MONO}`;
   g.strokeStyle = C.axis;
@@ -361,7 +367,7 @@ export function drawDistanceAxis(f: Frame, sector2Start: number, sector3Start: n
     const x = Math.round(xOf(d)) + 0.5;
     g.beginPath(); g.moveTo(x, top); g.lineTo(x, bottom); g.stroke();
     g.fillStyle = C.deltaLine;
-    g.fillText(label, x, sectorLabels === 'top' ? top - 14 : axisY + 6);
+    g.fillText(label, x, sectorLabels === 'top' ? top - 14 : labelY);
     g.fillStyle = C.label;
     if (sectorLabels === 'bottom') sectorXs.push(x);
   }
@@ -390,7 +396,7 @@ export function drawDistanceAxis(f: Frame, sector2Start: number, sector3Start: n
   for (let d = Math.ceil(range.from / step) * step; d <= range.to; d += step) {
     const x = xOf(d);
     if (x < margin.l + 10 || x > margin.l + f.plotW - 10 || sectorXs.some((sx) => Math.abs(sx - x) < 36)) continue;
-    g.fillText(d >= 1000 ? `${+(d / 1000).toFixed(1)} km` : `${d} m`, x, axisY + 6);
+    g.fillText(d >= 1000 ? `${+(d / 1000).toFixed(1)} km` : `${d} m`, x, labelY);
   }
   g.restore();
 }
