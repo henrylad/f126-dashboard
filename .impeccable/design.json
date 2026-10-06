@@ -1,0 +1,666 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-06T19:21:27+00:00",
+  "title": "Design System: Pit Wall",
+  "extensions": {
+    "colorMeta": {
+      "graphite-ground": {
+        "role": "neutral",
+        "displayName": "Graphite Ground",
+        "canonical": "#0d1117",
+        "oklch": "oklch(17.6% 0.014 258)",
+        "tonalRamp": [
+          "#090b0e",
+          "#22252a",
+          "#3e4248",
+          "#5d6268",
+          "#7d838b",
+          "#a0a5ad",
+          "#c5c9d0",
+          "#ebeff5"
+        ],
+        "cssVar": "--bg"
+      },
+      "graphite-panel": {
+        "role": "neutral",
+        "displayName": "Graphite Panel",
+        "canonical": "#151a22",
+        "oklch": "oklch(21.6% 0.018 260)",
+        "tonalRamp": [
+          "#090b0f",
+          "#22252b",
+          "#3e4249",
+          "#5c626a",
+          "#7c838d",
+          "#9fa5af",
+          "#c4c9d2",
+          "#eaeff6"
+        ],
+        "cssVar": "--panel"
+      },
+      "graphite-raised": {
+        "role": "neutral",
+        "displayName": "Graphite Raised",
+        "canonical": "#1b212b",
+        "oklch": "oklch(24.6% 0.021 261)",
+        "tonalRamp": [
+          "#080b10",
+          "#21252c",
+          "#3d424b",
+          "#5b626c",
+          "#7b838f",
+          "#9ea5b1",
+          "#c3cad4",
+          "#e9eff8"
+        ],
+        "cssVar": "--panel-2"
+      },
+      "seam": {
+        "role": "neutral",
+        "displayName": "Seam",
+        "canonical": "#262c36",
+        "oklch": "oklch(29.2% 0.020 261)",
+        "tonalRamp": [
+          "#090b10",
+          "#21252c",
+          "#3d424b",
+          "#5b626c",
+          "#7c838f",
+          "#9fa5b0",
+          "#c3c9d3",
+          "#e9eff8"
+        ],
+        "cssVar": "--line"
+      },
+      "seam-strong": {
+        "role": "neutral",
+        "displayName": "Seam Strong",
+        "canonical": "#353d49",
+        "oklch": "oklch(35.8% 0.023 258)",
+        "tonalRamp": [
+          "#080b11",
+          "#20252d",
+          "#3c424c",
+          "#5a626d",
+          "#7a8391",
+          "#9da6b2",
+          "#c2cad5",
+          "#e8eff9"
+        ],
+        "cssVar": "--line-strong"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#e6edf3",
+        "oklch": "oklch(94.3% 0.011 244)",
+        "tonalRamp": [
+          "#090b0e",
+          "#222628",
+          "#3e4346",
+          "#5d6267",
+          "#7d8389",
+          "#a0a6ab",
+          "#c5cace",
+          "#ebeff3"
+        ],
+        "cssVar": "--text"
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "#9aa4b0",
+        "oklch": "oklch(71.5% 0.021 253)",
+        "tonalRamp": [
+          "#080b10",
+          "#20262c",
+          "#3c434b",
+          "#5a626c",
+          "#7a838f",
+          "#9da6b1",
+          "#c2cad4",
+          "#e8eff8"
+        ],
+        "cssVar": "--muted"
+      },
+      "ink-dim": {
+        "role": "neutral",
+        "displayName": "Ink Dim",
+        "canonical": "#808a96",
+        "oklch": "oklch(62.9% 0.022 253)",
+        "tonalRamp": [
+          "#080b10",
+          "#20262c",
+          "#3c434b",
+          "#5a626c",
+          "#7a838f",
+          "#9da6b1",
+          "#c2cad4",
+          "#e8eff8"
+        ],
+        "cssVar": "--dim"
+      },
+      "focus-blue": {
+        "role": "primary",
+        "displayName": "Focus Blue",
+        "canonical": "#79c0ff",
+        "oklch": "oklch(78.6% 0.115 247)",
+        "tonalRamp": [
+          "#000b24",
+          "#002748",
+          "#0d456f",
+          "#276598",
+          "#4288c3",
+          "#6eabe1",
+          "#9acfff",
+          "#c6f4ff"
+        ],
+        "cssVar": "--blue"
+      },
+      "control-blue": {
+        "role": "primary",
+        "displayName": "Control Blue",
+        "canonical": "#1f6feb",
+        "oklch": "oklch(56.9% 0.202 260)",
+        "tonalRamp": [
+          "#000038",
+          "#001b64",
+          "#003a93",
+          "#135ac5",
+          "#2e7cf8",
+          "#5ea3ff",
+          "#8cc9ff",
+          "#baf0ff"
+        ],
+        "cssVar": "--accent"
+      },
+      "gained-green": {
+        "role": "secondary",
+        "displayName": "Gained Green",
+        "canonical": "#56d364",
+        "oklch": "oklch(77.2% 0.188 145)",
+        "tonalRamp": [
+          "#001400",
+          "#003200",
+          "#005400",
+          "#007813",
+          "#069d2f",
+          "#56bf60",
+          "#89e28e",
+          "#b9ffbc"
+        ],
+        "cssVar": "--green"
+      },
+      "lost-red-text": {
+        "role": "secondary",
+        "displayName": "Lost Red, text",
+        "canonical": "#ff7b72",
+        "oklch": "oklch(73.4% 0.163 26)",
+        "tonalRamp": [
+          "#260000",
+          "#4d0005",
+          "#771b1b",
+          "#a43633",
+          "#d1534d",
+          "#f17e75",
+          "#ffa99f",
+          "#ffd3ca"
+        ],
+        "cssVar": "--red-soft"
+      },
+      "lost-red-mark": {
+        "role": "secondary",
+        "displayName": "Lost Red, mark",
+        "canonical": "#f85149",
+        "oklch": "oklch(66.5% 0.205 27)",
+        "tonalRamp": [
+          "#2c0000",
+          "#550000",
+          "#820005",
+          "#b21e1f",
+          "#e23d38",
+          "#ff7065",
+          "#ff9e91",
+          "#ffcbbe"
+        ],
+        "cssVar": "--red"
+      },
+      "session-purple": {
+        "role": "tertiary",
+        "displayName": "Session Purple",
+        "canonical": "#d2a8ff",
+        "oklch": "oklch(80.1% 0.127 306)",
+        "tonalRamp": [
+          "#130122",
+          "#2f1745",
+          "#4f326b",
+          "#714e94",
+          "#956dbe",
+          "#b692dd",
+          "#d9b9fc",
+          "#fce1ff"
+        ],
+        "cssVar": "--purple"
+      },
+      "aero-amber": {
+        "role": "tertiary",
+        "displayName": "Aero Amber",
+        "canonical": "#e3b341",
+        "oklch": "oklch(79.0% 0.139 85)",
+        "tonalRamp": [
+          "#190600",
+          "#391f00",
+          "#5c3b00",
+          "#815a00",
+          "#a77a00",
+          "#c89f3f",
+          "#e9c476",
+          "#ffeba8"
+        ],
+        "cssVar": "--amber"
+      },
+      "slot-tangerine": {
+        "role": "tertiary",
+        "displayName": "Slot 1 Tangerine",
+        "canonical": "#ffa657",
+        "oklch": "oklch(79.9% 0.141 60)",
+        "tonalRamp": [
+          "#200000",
+          "#441400",
+          "#6a2f00",
+          "#934c00",
+          "#bd6a07",
+          "#dd914e",
+          "#fdb880",
+          "#ffe1b0"
+        ],
+        "source": "frontend/src/lib/chart.ts LAP_COLOURS"
+      },
+      "slot-teal": {
+        "role": "tertiary",
+        "displayName": "Slot 2 Teal",
+        "canonical": "#2dd4bf",
+        "oklch": "oklch(78.5% 0.133 182)",
+        "tonalRamp": [
+          "#00130d",
+          "#003128",
+          "#005246",
+          "#007666",
+          "#009b88",
+          "#35bdaa",
+          "#76dfce",
+          "#acfff3"
+        ],
+        "source": "frontend/src/lib/chart.ts LAP_COLOURS"
+      },
+      "slot-pink": {
+        "role": "tertiary",
+        "displayName": "Slot 3 Pink",
+        "canonical": "#f472b6",
+        "oklch": "oklch(72.5% 0.175 350)",
+        "tonalRamp": [
+          "#230011",
+          "#49002d",
+          "#72164c",
+          "#9e316e",
+          "#ca4d91",
+          "#eb79b3",
+          "#ffa4d6",
+          "#ffcffa"
+        ],
+        "source": "frontend/src/lib/chart.ts LAP_COLOURS"
+      },
+      "slot-citron": {
+        "role": "tertiary",
+        "displayName": "Slot 4 Citron",
+        "canonical": "#e9e26b",
+        "oklch": "oklch(89.5% 0.141 106)",
+        "tonalRamp": [
+          "#110b00",
+          "#2c2600",
+          "#4b4400",
+          "#6c6400",
+          "#8e8600",
+          "#b0a943",
+          "#d2ce78",
+          "#f6f3ab"
+        ],
+        "source": "frontend/src/lib/chart.ts LAP_COLOURS"
+      },
+      "slot-tan": {
+        "role": "tertiary",
+        "displayName": "Slot 5 Tan",
+        "canonical": "#c8a27a",
+        "oklch": "oklch(73.7% 0.070 68)",
+        "tonalRamp": [
+          "#150700",
+          "#342009",
+          "#553c20",
+          "#795a39",
+          "#9f7b54",
+          "#bf9e7c",
+          "#e1c3a4",
+          "#ffe9cf"
+        ],
+        "source": "frontend/src/lib/chart.ts LAP_COLOURS"
+      },
+      "slot-seafoam": {
+        "role": "tertiary",
+        "displayName": "Slot 6 Seafoam",
+        "canonical": "#8bd5ca",
+        "oklch": "oklch(82.1% 0.076 184)",
+        "tonalRamp": [
+          "#00100d",
+          "#002d28",
+          "#134c45",
+          "#2d6e66",
+          "#489187",
+          "#74b3aa",
+          "#9fd6cd",
+          "#cbfaf2"
+        ],
+        "source": "frontend/src/lib/chart.ts LAP_COLOURS"
+      },
+      "energy-harvest": {
+        "role": "tertiary",
+        "displayName": "Energy Harvest",
+        "canonical": "#58a6ff",
+        "oklch": "oklch(71.5% 0.152 253)",
+        "tonalRamp": [
+          "#00072c",
+          "#002354",
+          "#00427e",
+          "#1b62ab",
+          "#3684d9",
+          "#65a8f6",
+          "#92cdff",
+          "#c0f3ff"
+        ],
+        "source": "frontend/src/lib/meta.ts ENERGY"
+      },
+      "energy-medium": {
+        "role": "tertiary",
+        "displayName": "Deploy Medium",
+        "canonical": "#9e6a03",
+        "oklch": "oklch(56.5% 0.118 75)",
+        "tonalRamp": [
+          "#1a0500",
+          "#3a1d00",
+          "#5e3900",
+          "#845700",
+          "#ab771e",
+          "#cb9b56",
+          "#ecc186",
+          "#ffe8b5"
+        ],
+        "source": "frontend/src/lib/meta.ts ENERGY"
+      },
+      "energy-hotlap": {
+        "role": "tertiary",
+        "displayName": "Deploy Hotlap",
+        "canonical": "#f0883e",
+        "oklch": "oklch(72.7% 0.153 53)",
+        "tonalRamp": [
+          "#230000",
+          "#480e00",
+          "#702900",
+          "#9a4500",
+          "#c66307",
+          "#e68b4e",
+          "#ffb37f",
+          "#ffddb0"
+        ],
+        "source": "frontend/src/lib/meta.ts ENERGY"
+      },
+      "energy-boost": {
+        "role": "tertiary",
+        "displayName": "Boost",
+        "canonical": "#ffb3c6",
+        "oklch": "oklch(84.4% 0.091 3)",
+        "tonalRamp": [
+          "#1b0209",
+          "#3c1722",
+          "#61313e",
+          "#874d5d",
+          "#b06b7d",
+          "#d090a0",
+          "#f1b7c5",
+          "#ffdfeb"
+        ],
+        "source": "frontend/src/lib/meta.ts ENERGY"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The verdict sentence; the one line that answers the tab."
+      },
+      "headline-figure": {
+        "displayName": "Headline figure",
+        "purpose": "The gap figure inside the verdict."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Uppercase section heads inline with their controls, and table group rows."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Base text and tabs."
+      },
+      "body-sm": {
+        "displayName": "Body small",
+        "purpose": "Zone rows, rail rows, notes, table cells."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, segmented controls, table headers, fact labels."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Every figure in a row: lap times, gaps, distances."
+      },
+      "chart-label": {
+        "displayName": "Chart label",
+        "purpose": "Canvas panel labels on a ground-coloured plate."
+      },
+      "chart-figure": {
+        "displayName": "Chart figure",
+        "purpose": "Canvas axis ticks; zone numbers at weight 600."
+      }
+    },
+    "shadows": [
+      {
+        "name": "inset-ring",
+        "value": "inset 0 0 0 1px #353d49",
+        "purpose": "A one-pixel ring standing in for a border on the selected segment, empty swatches and the no-flow legend block. Not elevation."
+      },
+      {
+        "name": "focus-ring",
+        "value": "outline: 2px solid #79c0ff; outline-offset: 2px",
+        "purpose": "Global :focus-visible treatment for every control."
+      }
+    ],
+    "motion": [
+      {
+        "name": "zoom-ease",
+        "value": "220ms, ease-out cubic (1 - (1 - t)^3), one axis, no overshoot",
+        "purpose": "The shown distance range easing to a loss zone or back to the whole lap."
+      },
+      {
+        "name": "state-fast",
+        "value": "0.12s",
+        "purpose": "Checkbox fill and border."
+      },
+      {
+        "name": "state",
+        "value": "0.15s",
+        "purpose": "Button border, zone row background, mode tiles."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "@media (prefers-reduced-motion: reduce) { transition: none; animation: none }",
+        "purpose": "Disables every transition and the zoom ease."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "rail-narrow",
+        "value": "1180px",
+        "purpose": "Rail narrows to 280px; zone reasons wrap under the range."
+      },
+      {
+        "name": "single-column",
+        "value": "860px",
+        "purpose": "Answer first: verdict, then rail, then charts."
+      }
+    ],
+    "chart": {
+      "reference": {
+        "colour": "#9aa4b0",
+        "dash": [
+          6,
+          4
+        ]
+      },
+      "grid": "rgba(154, 164, 176, 0.1)",
+      "zero": "rgba(154, 164, 176, 0.5)",
+      "cursor": "rgba(230, 237, 243, 0.55)",
+      "aeroWash": "rgba(227, 179, 65, 0.05)",
+      "aeroEdge": "#e3b341",
+      "zoneWash": "rgba(248, 81, 73, 0.07)",
+      "zoneEdge": "#ff7b72",
+      "zoneBracket": "line across the top of the range with 6px downstrokes, mono 600 11px number above",
+      "panelGap": "18px",
+      "leftMargin": "64px",
+      "labelPlate": "graphite-panel at 85%"
+    }
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Compact console control; presets and tools.",
+      "html": "<button class=\"ds-btn\">Best vs last 3</button>",
+      "css": ".ds-btn{font-family:var(--font,\"Geist Variable\",system-ui,sans-serif);font-size:12px;font-weight:500;color:#e6edf3;background:#1b212b;border:1px solid #353d49;border-radius:6px;padding:4px 10px;cursor:pointer;transition:border-color .15s,background .15s}.ds-btn:hover{border-color:#9aa4b0}.ds-btn:focus-visible{outline:2px solid #79c0ff;outline-offset:2px}"
+    },
+    {
+      "name": "Button, selected",
+      "kind": "button",
+      "refersTo": "button-selected",
+      "description": "The preset currently applied.",
+      "html": "<button class=\"ds-btn-on\" aria-pressed=\"true\">Me vs fastest</button>",
+      "css": ".ds-btn-on{font-family:\"Geist Variable\",system-ui,sans-serif;font-size:12px;font-weight:500;color:#e6edf3;background:rgba(31,111,235,.18);border:1px solid #79c0ff;border-radius:6px;padding:4px 10px;cursor:pointer}.ds-btn-on:focus-visible{outline:2px solid #79c0ff;outline-offset:2px}"
+    },
+    {
+      "name": "Segmented control",
+      "kind": "chip",
+      "refersTo": "segmented",
+      "description": "Mutually exclusive filters and views.",
+      "html": "<span class=\"ds-seg\" role=\"group\"><button class=\"on\" aria-pressed=\"true\">All</button><button>Valid</button><button>Fastest 5</button></span>",
+      "css": ".ds-seg{display:inline-flex;gap:2px;padding:2px;border:1px solid #353d49;border-radius:6px;background:#0d1117}.ds-seg button{font-family:\"Geist Variable\",system-ui,sans-serif;font-size:12px;font-weight:500;color:#9aa4b0;background:none;border:0;border-radius:4px;padding:3px 10px;cursor:pointer}.ds-seg button:hover{color:#e6edf3}.ds-seg button.on{background:#1b212b;color:#e6edf3;box-shadow:inset 0 0 0 1px #353d49}.ds-seg button:focus-visible{outline:2px solid #79c0ff;outline-offset:2px}"
+    },
+    {
+      "name": "Tabs",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "Top-level Live / Lap analysis switch on the panel bar.",
+      "html": "<nav class=\"ds-tabs\"><button>Live</button><button class=\"on\">Lap analysis <span class=\"ds-count\">23</span></button></nav>",
+      "css": ".ds-tabs{display:flex;gap:4px;padding:6px 10px 0;background:#151a22;border-bottom:1px solid #262c36}.ds-tabs button{font-family:\"Geist Variable\",system-ui,sans-serif;font-size:14px;font-weight:500;color:#9aa4b0;background:none;border:0;border-bottom:2px solid transparent;padding:6px 12px 8px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}.ds-tabs button:hover{color:#e6edf3}.ds-tabs button.on{color:#e6edf3;border-bottom-color:#79c0ff}.ds-tabs button:focus-visible{outline:2px solid #79c0ff;outline-offset:2px}.ds-count{background:#1b212b;border:1px solid #353d49;border-radius:999px;padding:0 7px;font-size:12px;font-family:\"Geist Mono Variable\",ui-monospace,monospace;color:#9aa4b0}"
+    },
+    {
+      "name": "Filter chip",
+      "kind": "chip",
+      "refersTo": null,
+      "description": "Energy-map legend chips that toggle categories.",
+      "html": "<button class=\"ds-chip on\"><i style=\"background:#58a6ff\"></i>Harvesting</button><button class=\"ds-chip\"><i style=\"background:#ffb3c6\"></i>Boost</button>",
+      "css": ".ds-chip{font-family:\"Geist Variable\",system-ui,sans-serif;font-size:11px;color:#9aa4b0;background:none;border:1px solid #353d49;border-radius:999px;padding:1px 9px;cursor:pointer;display:inline-flex;align-items:center;margin-right:6px}.ds-chip i{width:10px;height:10px;border-radius:2px;margin-right:5px;display:inline-block}.ds-chip.on{color:#e6edf3;border-color:#9aa4b0}.ds-chip:not(.on){opacity:.45}.ds-chip:hover{opacity:1}.ds-chip:focus-visible{outline:2px solid #79c0ff;outline-offset:2px}"
+    },
+    {
+      "name": "Lap rail row",
+      "kind": "custom",
+      "refersTo": "rail-row",
+      "description": "Checkbox, slot swatch, lap, mono time and gap; Ref toggle on hover.",
+      "html": "<div class=\"ds-rail\"><label class=\"ds-row on\"><input type=\"checkbox\" checked style=\"--slot:#ffa657\"><b>L2</b><span class=\"t\">1:22.667</span><span class=\"g\">+0.434</span><button class=\"ref\">Ref</button></label><label class=\"ds-row\"><input type=\"checkbox\"><b>L3</b><span class=\"t\">1:22.900</span><span class=\"g\">+0.667</span><button class=\"ref\">Ref</button></label></div>",
+      "css": ".ds-rail{background:#151a22;width:320px;font-family:\"Geist Variable\",system-ui,sans-serif;color:#e6edf3}.ds-row{display:grid;grid-template-columns:22px 1fr auto 62px auto;align-items:center;gap:8px;min-height:32px;padding:0 14px 0 10px;font-size:13px;cursor:pointer}.ds-row:hover{background:#1b212b}.ds-row.on{background:rgba(121,192,255,.06)}.ds-row b{font-weight:600}.ds-row .t,.ds-row .g{font-family:\"Geist Mono Variable\",ui-monospace,monospace;font-variant-numeric:tabular-nums;text-align:right}.ds-row .g{font-size:12px;color:#808a96}.ds-row input{appearance:none;margin:0;width:16px;height:16px;border-radius:3px;border:1.5px solid #353d49;background:#0d1117;cursor:pointer;transition:background .12s,border-color .12s}.ds-row input:hover{border-color:#9aa4b0}.ds-row input:checked{background:var(--slot,#79c0ff);border-color:var(--slot,#79c0ff)}.ds-row input:focus-visible{outline:2px solid #79c0ff;outline-offset:2px}.ds-row .ref{font:inherit;font-size:11px;font-weight:600;color:#808a96;background:none;border:1px solid transparent;border-radius:4px;padding:2px 6px;opacity:0}.ds-row:hover .ref,.ds-row:focus-within .ref{opacity:1;border-color:#353d49;color:#9aa4b0}"
+    },
+    {
+      "name": "Loss zone row",
+      "kind": "custom",
+      "refersTo": "zone-row",
+      "description": "One verdict loss zone; activating it zooms every chart to its range.",
+      "html": "<ol class=\"ds-zones\"><li><button class=\"ds-zone on\" aria-pressed=\"true\"><span class=\"n\">1</span><span class=\"w\"><span class=\"m\">0.22–1.02</span> km <span class=\"d\">· S1 · minis 2–5</span></span><span class=\"ms\"><span class=\"m\">+0.191</span> s</span><span class=\"y\">ref used Boost · 4 km/h down on the straight</span></button></li><li><button class=\"ds-zone\"><span class=\"n\">2</span><span class=\"w\"><span class=\"m\">1.40–1.80</span> km <span class=\"d\">· S1 · minis 7–9</span></span><span class=\"ms\"><span class=\"m\">+0.035</span> s</span><span class=\"y\">1.4 km/h less speed through here</span></button></li></ol>",
+      "css": ".ds-zones{list-style:none;margin:0;padding:0;border-top:1px solid #262c36;background:#151a22}.ds-zones li{border-bottom:1px solid #262c36}.ds-zone{width:100%;display:grid;grid-template-columns:26px minmax(200px,max-content) 92px 1fr;align-items:center;gap:12px;padding:8px;text-align:left;font-family:\"Geist Variable\",system-ui,sans-serif;font-size:13px;color:#e6edf3;background:none;border:0;cursor:pointer;transition:background .15s}.ds-zone:hover{background:#1b212b}.ds-zone.on{background:rgba(248,81,73,.08)}.ds-zone:focus-visible{outline:2px solid #79c0ff;outline-offset:2px}.ds-zone .n{width:20px;height:20px;display:grid;place-items:center;font-family:\"Geist Mono Variable\",ui-monospace,monospace;font-size:11px;font-weight:600;color:#ff7b72;border:1px solid rgba(255,123,114,.6);border-radius:3px}.ds-zone.on .n{background:#ff7b72;color:#0d1117}.ds-zone .m{font-family:\"Geist Mono Variable\",ui-monospace,monospace;font-variant-numeric:tabular-nums}.ds-zone .d{color:#808a96}.ds-zone .ms{font-weight:600;text-align:right;color:#ff7b72}.ds-zone .y{color:#9aa4b0}"
+    },
+    {
+      "name": "Verdict line",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The answer sentence: words in Geist, figures in mono, gap coloured by state.",
+      "html": "<p class=\"ds-verdict\"><i class=\"sw\"></i> <b>L2</b> is <span class=\"lost\"><span class=\"m\">0.434</span> s slower</span> than <b>COL L2</b> <span class=\"d\">(ref)</span></p>",
+      "css": ".ds-verdict{margin:0;font-family:\"Geist Variable\",system-ui,sans-serif;font-size:20px;font-weight:500;letter-spacing:-.01em;line-height:1.35;color:#e6edf3;text-wrap:balance}.ds-verdict b{font-weight:600}.ds-verdict .sw{display:inline-block;width:10px;height:10px;border-radius:2px;background:#ffa657;vertical-align:2px}.ds-verdict .lost{color:#ff7b72;font-weight:600}.ds-verdict .m{font-family:\"Geist Mono Variable\",ui-monospace,monospace;font-size:22px;font-variant-numeric:tabular-nums}.ds-verdict .d{color:#808a96}"
+    },
+    {
+      "name": "Data table",
+      "kind": "card",
+      "refersTo": "table-header",
+      "description": "Sortable lap data with a sticky raised header and seam-ruled rows.",
+      "html": "<table class=\"ds-table\"><thead><tr><th class=\"l\">Lap</th><th class=\"on\">Time</th><th>S1</th></tr></thead><tbody><tr><th class=\"l\">L2</th><td>1:22.667</td><td class=\"p\">27.901</td></tr><tr><th class=\"l\">L3</th><td>1:22.900</td><td>28.010</td></tr></tbody></table>",
+      "css": ".ds-table{border-collapse:collapse;width:100%;font-size:13px;color:#e6edf3;background:#151a22;font-family:\"Geist Variable\",system-ui,sans-serif}.ds-table thead th{background:#1b212b;font-size:12px;font-weight:500;color:#9aa4b0;text-align:right;padding:7px 10px;border-bottom:1px solid #262c36;cursor:pointer}.ds-table thead th:hover,.ds-table thead th.on{color:#e6edf3}.ds-table .l{text-align:left}.ds-table tbody th,.ds-table td{padding:6px 10px;text-align:right;border-top:1px solid #262c36;font-weight:400}.ds-table td{font-family:\"Geist Mono Variable\",ui-monospace,monospace;font-variant-numeric:tabular-nums}.ds-table tbody tr:hover{background:#1b212b}.ds-table .p{color:#d2a8ff}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Graphite Console",
+    "overview": "**Creative North Star: \"The Graphite Console\"**\n\nPit Wall reads like a developer console that happens to know racing. A graphite ground carries panels tiled edge to edge, split by one-pixel seams rather than floated as cards. Nothing glows, nothing lifts: depth is one tonal step and a hairline. Colour is withheld from chrome entirely and spent only on state, so when red, green or purple appears it means something the driver must read.\n\nThe system is built for a seated, unhurried reading in a dim room on a second screen, and for a one-second glance from the cockpit. Density is high but ordered: compact 32px rows, tabular figures that never jitter, small sentence-case labels in the UI face, and every number in the mono face. The answer comes first in plain words; the charts underneath let you verify it, all on one shared distance axis that zooms together.\n\nMotion is a single grammar: a range easing along one axis (220ms, cubic ease-out, no overshoot), and short 0.12 to 0.2s colour transitions on hover. Reduced-motion turns all of it off.",
+    "keyCharacteristics": [
+      "Graphite ground, tiled panels, one-pixel seams; no drop shadows and no rounded floating cards.",
+      "Accents are state, never decoration: purple session best, green gained, red lost, amber active aero, blue focus and selection.",
+      "Geist for words, Geist Mono with tabular figures for every number.",
+      "Six lap-slot colours deliberately avoid the state hues; the reference lap is always neutral grey and dashed.",
+      "One distance axis, one zoom: loss zones are bracketed ranges that drive every chart at once."
+    ],
+    "rules": [
+      {
+        "name": "The State-Only Rule",
+        "body": "An accent hue appears only to carry the state it owns. Chrome, headings, borders and backgrounds stay in the graphite scale; if a colour is not answering \"best, gained, lost, aero or focus\", it does not belong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Slot Separation Rule",
+        "body": "Lap-slot colours never borrow a state hue, and the reference lap is never coloured: it is drawn in ink-muted, dashed (6px on, 4px off), whatever slot it holds.",
+        "section": "colors"
+      },
+      {
+        "name": "The Figures-In-Mono Rule",
+        "body": "Every number is set in Geist Mono with tabular figures, including numbers inside sentences (\"0.42–1.31 km · S1\"). Words around them stay in Geist.",
+        "section": "typography"
+      },
+      {
+        "name": "The Quiet Weight Rule",
+        "body": "Weights stay between 400 and 600 on the analysis surface. Emphasis comes from colour state and the mono switch, not from black weights.",
+        "section": "typography"
+      },
+      {
+        "name": "The Seam Rule",
+        "body": "Separate with a one-pixel seam or a tonal step, never with a shadow or a gap that floats a card. If two regions need distinguishing, tile them and draw the line.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** tile panels edge to edge and divide them with a one-pixel seam (seam), stepping tone from ground to panel to raised.",
+      "**Do** reserve purple for session best, green for gained, red for lost, amber for active aero and blue for focus and selection.",
+      "**Do** set every figure in Geist Mono with tabular figures, including figures inside prose.",
+      "**Do** draw the reference lap in ink-muted with a 6/4 dash, and give compared laps fixed slot colours that never borrow a state hue.",
+      "**Do** lead an analysis surface with its answer in plain words, then let one shared zoom carry every chart to the range in question.",
+      "**Do** keep controls compact (4px 10px, 6px radius) and make every control reachable and visibly focused by keyboard."
+    ],
+    "donts": [
+      "**Don't** use drop shadows or glows for depth; one-pixel inset rings standing in for borders are the only box-shadow the surface uses.",
+      "**Don't** use decorative gradients; repeating gradients that draw dashes are the only gradients the world uses.",
+      "**Don't** float rounded cards with gaps between them on the analysis surface.",
+      "**Don't** spend an accent hue on chrome, headings or emphasis that carries no state.",
+      "**Don't** set display or heading text at black weights (800 to 900); the analysis surface tops out at 600.",
+      "**Don't** style with team liveries or logos; team colour appears only as an 8px identification dot beside a driver."
+    ]
+  }
+}
