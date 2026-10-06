@@ -5,3 +5,9 @@ recordings/*
 !recordings/.gitkeep
 bin/
 obj/
+
+# Impeccable scratch: downloaded reference art and decision pages
+.impeccable/decision/
+.impeccable/mocks/
+.impeccable/review/
+.impeccable/questions/
