@@ -3,3 +3,5 @@ dist
 *.f1rec
 recordings/*
 !recordings/.gitkeep
+bin/
+obj/

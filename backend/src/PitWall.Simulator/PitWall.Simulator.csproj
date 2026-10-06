@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Synthetic race that emits genuine packetFormat 2026 packets, so everything runs without the game. -->
+  <ItemGroup>
+    <ProjectReference Include="..\PitWall.Telemetry\PitWall.Telemetry.csproj" />
+  </ItemGroup>
+</Project>

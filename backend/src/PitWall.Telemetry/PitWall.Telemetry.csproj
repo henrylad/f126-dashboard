@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Wire format of the F1 25 "2026 Season Pack" UDP telemetry (packetFormat 2026). No dependencies. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="PitWall.Telemetry.Tests" />
+  </ItemGroup>
+</Project>

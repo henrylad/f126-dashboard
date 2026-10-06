@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\PitWall.Core\PitWall.Core.csproj" />
+    <ProjectReference Include="..\PitWall.Simulator\PitWall.Simulator.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="PitWall.Server.Tests" />
+  </ItemGroup>
+</Project>

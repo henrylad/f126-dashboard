@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\PitWall.Telemetry\PitWall.Telemetry.csproj" />
+  </ItemGroup>
+</Project>

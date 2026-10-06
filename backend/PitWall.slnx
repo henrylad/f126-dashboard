@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PitWall.Core/PitWall.Core.csproj" />
+    <Project Path="src/PitWall.Server/PitWall.Server.csproj" />
+    <Project Path="src/PitWall.Simulator/PitWall.Simulator.csproj" />
+    <Project Path="src/PitWall.Telemetry/PitWall.Telemetry.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PitWall.Core.Tests/PitWall.Core.Tests.csproj" />
+    <Project Path="tests/PitWall.Server.Tests/PitWall.Server.Tests.csproj" />
+    <Project Path="tests/PitWall.Telemetry.Tests/PitWall.Telemetry.Tests.csproj" />
+  </Folder>
+</Solution>

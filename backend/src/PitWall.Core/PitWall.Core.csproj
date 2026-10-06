@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Session state and lap analysis: turns decoded packets into what the dashboard shows. -->
+  <ItemGroup>
+    <ProjectReference Include="..\PitWall.Telemetry\PitWall.Telemetry.csproj" />
+  </ItemGroup>
+</Project>

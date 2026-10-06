@@ -4,20 +4,27 @@ A live pit-wall dashboard for **EA F1 25 with the 2026 Season Pack** ("F1 26"), 
 after the Oracle Red Bull sim-racing pit wall: timing tower, live track map, lap traces
 against your best lap, tyres, damage, and the new 2026 **active aero** and **overtake mode**.
 
-The UDP parser is written from scratch (`server/codec.ts` + `server/packets.ts`) for
+The UDP parser is written from scratch (`backend/src/PitWall.Telemetry`) for
 `packetFormat 2026`; every packet layout is checked against the published byte sizes.
 
 ## Run it
 
+Development runs the .NET server and the Vite dev server side by side:
+
 ```bash
+cd backend/src/PitWall.Server
+dotnet run --launch-profile sim    # simulated 22-car race, no game needed
+dotnet run --launch-profile live   # live: listens for the game on UDP 20777
+
+cd frontend
 npm install
-npm run sim     # simulated 22-car race, no game needed
-npm run dev     # live: listens for the game on UDP 20777
+npm run dev                        # dashboard, proxies /ws to the server on :5080
 ```
 
-Open <http://localhost:5173>.
+Open <http://localhost:5173>. Point the dev server at another backend with
+`PITWALL_API=http://host:port npm run dev`.
 
-Production: `npm run build && npm start`.
+Production is the Docker image below: the server serves the built dashboard itself.
 
 ### Docker
 
@@ -55,27 +62,27 @@ sudo firewall-cmd --permanent --add-port=20777/udp # permanently
 ### Options
 
 ```bash
-npm run dev -- --record session.f1rec   # save raw packets while driving
-npm run dev -- --replay session.f1rec   # replay them later (loops)
-npm run dev -- --udp-port 20778 --port 8080
+dotnet run -- --record session.f1rec   # save raw packets while driving
+dotnet run -- --replay session.f1rec   # replay them later (loops)
+dotnet run -- --udp-port 20778 --port 8080
 ```
 
 ## Layout
 
 ```
-server/codec.ts     schema-driven little-endian binary reader/writer
-server/packets.ts   2026 packet layouts (ids 0–16) + decodePacket()
-server/state.ts     folds packets into one Snapshot
-server/sim.ts       synthetic race that emits real 2026 binary packets
-server/index.ts     UDP / sim / replay → WebSocket (30 Hz) + Vite
-shared/             snapshot types, id lookups, lap-trace store
-web/                React dashboard
+backend/src/PitWall.Telemetry   2026 packet layouts + little-endian codec
+backend/src/PitWall.Core        folds packets into a Snapshot; lap archive, mini sectors
+backend/src/PitWall.Simulator   synthetic race that emits real 2026 binary packets
+backend/src/PitWall.Server      UDP / sim / replay → WebSocket (30 Hz), serves the dashboard
+backend/tests                   packet sizes vs the spec, round-trips, lap tracking
+frontend/                       React dashboard (Vite)
 ```
 
-`npm test` checks every packet size against the spec and round-trips fields.
+`dotnet test` (in `backend/`) checks every packet size against the spec and round-trips fields.
+`npm run typecheck` (in `frontend/`) checks the dashboard.
 
 ## Known unknowns
 
 - The 2026 format sends G-forces as int16. The scale factor isn't confirmed; it's
-  `G_FORCE_SCALE` in `server/packets.ts` — adjust if the G readout looks off in-game.
-- ERS percentage assumes a 4 MJ store (`ERS_MAX_J` in `shared/types.ts`).
+  `GForceScale` in `backend/src/PitWall.Telemetry/PacketFormat.cs` — adjust if the G readout looks off in-game.
+- ERS percentage assumes a 4 MJ store (`ERS_MAX_J` in `frontend/src/api/types.ts`).
