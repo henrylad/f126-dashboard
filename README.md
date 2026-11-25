@@ -1,11 +1,32 @@
 # Pit Wall — F1 25 · 2026 Season telemetry dashboard
 
-A live pit-wall dashboard for **EA F1 25 with the 2026 Season Pack** ("F1 26"), styled
-after the Oracle Red Bull sim-racing pit wall: timing tower, live track map, lap traces
-against your best lap, tyres, damage, and the new 2026 **active aero** and **overtake mode**.
+A live pit-wall dashboard for **EA F1 25 with the 2026 Season Pack** ("F1 26"). It turns the
+game's UDP telemetry into what a driver needs to get faster: where a lap loses time, how the
+battery was deployed, and everything the car reports, including the new 2026 **active aero**
+and **overtake mode**.
 
 The UDP parser is written from scratch (`backend/src/PitWall.Telemetry`) for
 `packetFormat 2026`; every packet layout is checked against the published byte sizes.
+
+![Telemetry tab](docs/telemetry.png)
+
+## What's in it
+
+- **Live**: timing tower, track map with mini sectors and an energy map, lap trace against
+  your best lap with a live delta, cockpit, energy and aero, tyres, damage and an event feed.
+- **Telemetry**: your car only, every channel. Rolling traces of speed, pedals, steering,
+  gear and RPM, battery, deploy/harvest flow by ERS mode, ICE and MGU-K power, G-forces, ride
+  height and wheel slip. Also an energy breakdown with the per-lap harvest limit, a G-G
+  diagram, per-wheel slip, loads and suspension, tyres and brakes, power-unit wear, race
+  control and the car setup.
+- **Lap analysis**: compare any of your laps with each other and with other drivers' fastest
+  laps; it leads with the loss zones (where, how much, and why) and zooms every chart to them.
+- A **simulator** that emits real 2026-format packets, so everything runs without the game,
+  and **record / replay** of raw sessions.
+
+| Live | Lap analysis |
+|---|---|
+| ![Live tab](docs/live.png) | ![Lap analysis tab](docs/laps.png) |
 
 ## Run it
 
@@ -86,3 +107,13 @@ frontend/                       React dashboard (Vite)
 - The 2026 format sends G-forces as int16. The scale factor isn't confirmed; it's
   `GForceScale` in `backend/src/PitWall.Telemetry/PacketFormat.cs` — adjust if the G readout looks off in-game.
 - ERS percentage assumes a 4 MJ store (`ERS_MAX_J` in `frontend/src/api/types.ts`).
+
+## License
+
+[MIT](LICENSE)
+
+## Disclaimer
+
+An unofficial fan project. Not affiliated with, endorsed or sponsored by Electronic Arts,
+Codemasters, Formula One or any team. F1 and related marks belong to their owners. Team names
+and colours are used only to identify cars in the game's own telemetry.

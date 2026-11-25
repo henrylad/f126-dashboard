@@ -96,7 +96,7 @@ function Setup({ connected }: { connected: boolean }) {
         <li>Set <b>UDP IP Address</b> to this computer’s IP and port to <code>20777</code>.</li>
         <li>Set <b>UDP Send Rate</b> to <code>30Hz</code> or <code>60Hz</code>, then get on track.</li>
       </ol>
-      <p>No game handy? Run <code>npm run sim</code> for a simulated race.</p>
+      <p>No game handy? Start the server with <code>--sim</code> for a simulated race.</p>
     </div>
   );
 }

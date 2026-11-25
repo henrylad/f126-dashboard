@@ -6,7 +6,17 @@ recordings/*
 bin/
 obj/
 
-# Impeccable scratch: downloaded reference art and decision pages
+# Local agent and editor tooling
+.agents/
+.claude/
+.codex/
+skills-lock.json
+screenshot.png
+
+# Impeccable scratch: local config, caches, critiques, reference art and decision pages
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/critique/
 .impeccable/decision/
 .impeccable/mocks/
 .impeccable/review/
