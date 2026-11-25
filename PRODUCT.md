@@ -26,7 +26,7 @@ The decoder is a from-scratch implementation of `packetFormat 2026`, so it reads
 
 ## Capabilities and Constraints
 - Backend: .NET (`backend/`, projects PitWall.Core, PitWall.Server, PitWall.Simulator, PitWall.Telemetry) handles UDP ingest, the packet codec, session state, lap recording and recordings, and streams snapshots to the browser in real time.
-- Frontend: React + Vite + TypeScript (`frontend/`). There are two tabs. **Live** has the timing tower, track map, live traces against your best lap, cockpit, energy, tyres, damage and an event feed. **Lap analysis** has the lap table, compare chart, energy compare and mini compare.
+- Frontend: React + Vite + TypeScript (`frontend/`). There are three tabs. **Live** has the timing tower, track map, live traces against your best lap, cockpit, energy, tyres, damage and an event feed. **Telemetry** is the player's car only: rolling time traces of every channel (pedals, steering, RPM, battery, deploy/harvest flow, ICE and MGU-K power, G-forces, ride height, wheel slip), the energy breakdown, a G-G diagram, per-wheel dynamics from extended motion, tyres and brakes, power-unit wear, race control and the car setup. **Lap analysis** has the lap table, compare chart, energy compare and mini compare.
 - The repository is mid-migration from a Node server to the .NET backend. `frontend/package.json` scripts and the README still point to the old `server/` paths.
 - Open question: the scale factor for G-force (sent as int16) is unconfirmed.
 - Terminology follows the 2026 F1 regulations and the game's terms: overtake mode, active aero, ERS, sectors, compounds.

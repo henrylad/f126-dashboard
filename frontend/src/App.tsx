@@ -10,15 +10,18 @@ import { Tyres } from './components/Tyres.tsx';
 import { Damage } from './components/Damage.tsx';
 import { Feed } from './components/Feed.tsx';
 import { LapAnalysis } from './components/analysis/LapAnalysis.tsx';
+import { Telemetry } from './components/telemetry/Telemetry.tsx';
 
 const STALE_MS = 3000;
 
-type Tab = 'live' | 'laps';
+type Tab = 'live' | 'telemetry' | 'laps';
+const TABS: Tab[] = ['live', 'telemetry', 'laps'];
 const TAB_KEY = 'pitwall.tab';
 
 function savedTab(): Tab {
   try {
-    return localStorage.getItem(TAB_KEY) === 'laps' ? 'laps' : 'live';
+    const t = localStorage.getItem(TAB_KEY) as Tab | null;
+    return t && TABS.includes(t) ? t : 'live';
   } catch {
     return 'live';
   }
@@ -38,6 +41,7 @@ export function App() {
       <Header snap={snap} connected={connected} stale={waiting} />
       <nav className="tabs" role="tablist">
         <button role="tab" aria-selected={tab === 'live'} className={tab === 'live' ? 'on' : ''} onClick={() => pick('live')}>Live</button>
+        <button role="tab" aria-selected={tab === 'telemetry'} className={tab === 'telemetry' ? 'on' : ''} onClick={() => pick('telemetry')}>Telemetry</button>
         <button role="tab" aria-selected={tab === 'laps'} className={tab === 'laps' ? 'on' : ''} onClick={() => pick('laps')}>
           Lap analysis{store.laps.length ? <span className="count num">{store.laps.length}</span> : null}
         </button>
@@ -52,8 +56,9 @@ export function App() {
         <Setup connected={connected} />
       ) : (
         <>
-        {/* Both tabs stay mounted so selections and scroll survive switching. */}
+        {/* Every tab stays mounted so selections, scroll and the telemetry buffer survive switching. */}
         <div className="tab-body" hidden={tab !== 'laps'}><LapAnalysis snap={snap} store={store} /></div>
+        <div className="tab-body" hidden={tab !== 'telemetry'}><Telemetry snap={snap} store={store} /></div>
         <main className="main" hidden={tab !== 'live'}>
           <div className="col">
             <TimingTower cars={snap.cars} sessionType={snap.session.sessionType} />

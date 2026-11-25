@@ -105,3 +105,9 @@ export const ENERGY = [
   { key: 'boost', label: 'Boost', colour: '#FFB3C6' },
 ] as const;
 export type EnergyKey = (typeof ENERGY)[number]['key'];
+
+export const SURFACES = ['Tarmac', 'Rumble strip', 'Concrete', 'Rock', 'Gravel', 'Mud', 'Sand', 'Grass', 'Water', 'Cobblestone', 'Metal', 'Ridged'];
+export const TRACTION_CONTROL = ['Off', 'Medium', 'Full'];
+export const FIA_FLAGS: Record<number, string> = { [-1]: 'Unknown', 0: 'None', 1: 'Green', 2: 'Blue', 3: 'Yellow' };
+export const RESULT_STATUS = ['Invalid', 'Inactive', 'Active', 'Finished', 'DNF', 'DSQ', 'Not classified', 'Retired'];
+export const PIT_STATES = ['On track', 'Pitting', 'In pit area'];

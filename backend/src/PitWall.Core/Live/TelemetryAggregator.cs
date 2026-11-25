@@ -30,6 +30,8 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
     private CarStatusPacket? _status;
     private CarDamagePacket? _damage;
     private CarTelemetry2Packet? _telemetry2;
+    private MotionExPacket? _motionEx;
+    private CarSetupsPacket? _setups;
     private long? _lastPacketAt;
     private int? _wrongFormat;
 
@@ -62,6 +64,8 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
             case CarStatusPacket p: _status = p; break;
             case CarDamagePacket p: _damage = p; break;
             case CarTelemetry2Packet p: _telemetry2 = p; break;
+            case MotionExPacket p: _motionEx = p; break;
+            case CarSetupsPacket p: _setups = p; break;
             case SessionHistoryPacket p: OnSessionHistory(p); break;
             case EventPacket p: _feed.Add(header.SessionTime, p, DriverName); break;
         }
@@ -100,6 +104,8 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
         _status = null;
         _damage = null;
         _telemetry2 = null;
+        _motionEx = null;
+        _setups = null;
         Array.Clear(_bestLapMs);
         _feed.Clear();
     }
@@ -253,6 +259,8 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
             SuggestedGear = telemetry.SuggestedGear,
             Rpm = tel.EngineRpm,
             MaxRpm = st.MaxRpm > 0 ? st.MaxRpm : DefaultMaxRpm,
+            IdleRpm = st.IdleRpm,
+            MaxGears = st.MaxGears,
             RevLightsPct = tel.RevLightsPercent,
             EngineTemp = tel.EngineTemperature,
             BrakesTemp = ToInts(tel.BrakesTemperature),
@@ -263,6 +271,7 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
             TyresDamage = ToInts(dmg.TyresDamage),
             TyreBlisters = ToInts(dmg.TyreBlisters),
             BrakesDamage = ToInts(dmg.BrakesDamage),
+            SurfaceType = ToInts(tel.SurfaceType),
             Damage = new DamageInfo
             {
                 FrontLeftWing = dmg.FrontLeftWingDamage,
@@ -279,16 +288,30 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
                 Es = dmg.EngineEsWear,
                 Ce = dmg.EngineCeWear,
                 Tc = dmg.EngineTcWear,
+                DrsFault = dmg.DrsFault,
+                ErsFault = dmg.ErsFault,
+                EngineBlown = dmg.EngineBlown,
+                EngineSeized = dmg.EngineSeized,
             },
             FuelKg = st.FuelInTank,
+            FuelCapacityKg = st.FuelCapacity,
             FuelLaps = st.FuelRemainingLaps,
             // Standard mix until the status packet says otherwise.
             FuelMix = _status is null ? 1 : st.FuelMix,
             BrakeBias = st.FrontBrakeBias,
+            TractionControl = st.TractionControl,
+            Abs = st.AntiLockBrakes != 0,
+            FiaFlag = _status is null ? 0 : st.VehicleFiaFlags,
+            Drs = tel.Drs,
+            DrsAllowed = st.DrsAllowed,
+            DrsActivationDistance = st.DrsActivationDistance,
             ErsStoreJ = st.ErsStoreEnergy,
             ErsDeployMode = st.ErsDeployMode,
             ErsDeployedLapJ = st.ErsDeployedThisLap,
             ErsHarvestedLapJ = st.ErsHarvestedThisLapMguk + st.ErsHarvestedThisLapMguh,
+            ErsHarvestedMgukLapJ = st.ErsHarvestedThisLapMguk,
+            ErsHarvestedMguhLapJ = st.ErsHarvestedThisLapMguh,
+            ErsHarvestLimitLapJ = st.ErsHarvestLimitPerLap,
             PowerIceW = st.EnginePowerIce,
             PowerMgukW = st.EnginePowerMguk,
             PitLimiter = st.PitLimiterStatus,
@@ -302,16 +325,100 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
             OvertakeActive = t2.OvertakeActive,
             OvertakeActivationDistance = t2.OvertakeActivationDistance,
             Regs2026 = t2.Regulations2026Applicable,
+            WrongWay = t2.DrivingWrongWay,
             GLat = motion is { } m ? m.GForceLateral / PacketFormat.GForceScale : 0,
             GLon = motion is { } m2 ? m2.GForceLongitudinal / PacketFormat.GForceScale : 0,
+            GVert = motion is { } m3 ? m3.GForceVertical / PacketFormat.GForceScale : 0,
+            Yaw = motion?.Yaw ?? 0,
+            Pitch = motion?.Pitch ?? 0,
+            Roll = motion?.Roll ?? 0,
             LapDistance = l.LapDistance,
             CurrentLapMs = l.CurrentLapTimeInMs,
             Lap = l.CurrentLapNum,
             Sector1Ms = l.Sector1TimeMs,
             Sector2Ms = l.Sector2TimeMs,
             SpeedTrapKmh = l.SpeedTrapFastestSpeed,
+            Race = new LapInfo
+            {
+                Position = l.CarPosition,
+                GridPosition = l.GridPosition,
+                LastLapMs = l.LastLapTimeInMs,
+                Sector = l.Sector,
+                CurrentLapInvalid = l.CurrentLapInvalid,
+                TotalDistance = l.TotalDistance,
+                GapAheadMs = l.DeltaToCarInFrontMs,
+                GapLeaderMs = l.DeltaToRaceLeaderMs,
+                SafetyCarDelta = l.SafetyCarDelta,
+                PenaltiesSec = l.Penalties,
+                TotalWarnings = l.TotalWarnings,
+                CornerCuttingWarnings = l.CornerCuttingWarnings,
+                UnservedDriveThroughs = l.NumUnservedDriveThroughPens,
+                UnservedStopGos = l.NumUnservedStopGoPens,
+                PitStatus = l.PitStatus,
+                NumPitStops = l.NumPitStops,
+                PitLaneTimerActive = l.PitLaneTimerActive,
+                PitLaneTimeMs = l.PitLaneTimeInLaneInMs,
+                PitStopTimerMs = l.PitStopTimerInMs,
+                ServePenaltyAtStop = l.PitStopShouldServePen,
+                DriverStatus = l.DriverStatus,
+                ResultStatus = l.ResultStatus,
+                SpeedTrapLap = l.SpeedTrapFastestLap,
+            },
+            Chassis = _motionEx is { } mx ? BuildChassis(mx) : null,
+            Setup = _setups is { } su ? BuildSetup(su.Cars[i], su.NextFrontWingValue) : null,
         };
     }
+
+    private static ChassisInfo BuildChassis(in MotionExPacket m) => new()
+    {
+        SuspensionPosition = ToDoubles(m.SuspensionPosition),
+        SuspensionVelocity = ToDoubles(m.SuspensionVelocity),
+        SuspensionAcceleration = ToDoubles(m.SuspensionAcceleration),
+        WheelSpeed = ToDoubles(m.WheelSpeed),
+        WheelSlipRatio = ToDoubles(m.WheelSlipRatio),
+        WheelSlipAngle = ToDoubles(m.WheelSlipAngle),
+        WheelLatForce = ToDoubles(m.WheelLatForce),
+        WheelLongForce = ToDoubles(m.WheelLongForce),
+        WheelVertForce = ToDoubles(m.WheelVertForce),
+        WheelCamber = ToDoubles(m.WheelCamber),
+        WheelCamberGain = ToDoubles(m.WheelCamberGain),
+        HeightOfCog = m.HeightOfCogAboveGround,
+        LocalVelocity = [m.LocalVelocityX, m.LocalVelocityY, m.LocalVelocityZ],
+        AngularVelocity = [m.AngularVelocityX, m.AngularVelocityY, m.AngularVelocityZ],
+        AngularAcceleration = [m.AngularAccelerationX, m.AngularAccelerationY, m.AngularAccelerationZ],
+        FrontWheelsAngle = m.FrontWheelsAngle,
+        FrontAeroHeight = m.FrontAeroHeight,
+        RearAeroHeight = m.RearAeroHeight,
+        FrontRollAngle = m.FrontRollAngle,
+        RearRollAngle = m.RearRollAngle,
+        ChassisYaw = m.ChassisYaw,
+        ChassisPitch = m.ChassisPitch,
+    };
+
+    private static SetupInfo BuildSetup(in CarSetupData s, float nextFrontWing) => new()
+    {
+        FrontWing = s.FrontWing,
+        RearWing = s.RearWing,
+        OnThrottle = s.OnThrottle,
+        OffThrottle = s.OffThrottle,
+        FrontCamber = s.FrontCamber,
+        RearCamber = s.RearCamber,
+        FrontToe = s.FrontToe,
+        RearToe = s.RearToe,
+        FrontSuspension = s.FrontSuspension,
+        RearSuspension = s.RearSuspension,
+        FrontAntiRollBar = s.FrontAntiRollBar,
+        RearAntiRollBar = s.RearAntiRollBar,
+        FrontRideHeight = s.FrontSuspensionHeight,
+        RearRideHeight = s.RearSuspensionHeight,
+        BrakePressure = s.BrakePressure,
+        BrakeBias = s.BrakeBias,
+        EngineBraking = s.EngineBraking,
+        TyresPressure = ToDoubles(s.TyresPressure),
+        Ballast = s.Ballast,
+        FuelLoad = s.FuelLoad,
+        NextFrontWing = nextFrontWing,
+    };
 
     private static int[] ToInts(ReadOnlySpan<byte> values)
     {

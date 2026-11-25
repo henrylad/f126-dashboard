@@ -119,6 +119,100 @@ public sealed record DamageInfo
     public int Es { get; init; }
     public int Ce { get; init; }
     public int Tc { get; init; }
+    public bool DrsFault { get; init; }
+    public bool ErsFault { get; init; }
+    public bool EngineBlown { get; init; }
+    public bool EngineSeized { get; init; }
+}
+
+/// <summary>The player's lap-data row: position, timing, warnings, penalties and pits.</summary>
+public sealed record LapInfo
+{
+    public int Position { get; init; }
+    public int GridPosition { get; init; }
+    public long LastLapMs { get; init; }
+    /// <summary>0, 1 or 2.</summary>
+    public int Sector { get; init; }
+    public bool CurrentLapInvalid { get; init; }
+    public double TotalDistance { get; init; }
+    public int GapAheadMs { get; init; }
+    public int GapLeaderMs { get; init; }
+    public double SafetyCarDelta { get; init; }
+    public int PenaltiesSec { get; init; }
+    public int TotalWarnings { get; init; }
+    public int CornerCuttingWarnings { get; init; }
+    public int UnservedDriveThroughs { get; init; }
+    public int UnservedStopGos { get; init; }
+    /// <summary>0 none, 1 pitting, 2 in the pit area.</summary>
+    public int PitStatus { get; init; }
+    public int NumPitStops { get; init; }
+    public bool PitLaneTimerActive { get; init; }
+    public int PitLaneTimeMs { get; init; }
+    public int PitStopTimerMs { get; init; }
+    public bool ServePenaltyAtStop { get; init; }
+    public int DriverStatus { get; init; }
+    public int ResultStatus { get; init; }
+    /// <summary>Lap of the fastest speed-trap pass; 255 when none yet.</summary>
+    public int SpeedTrapLap { get; init; }
+}
+
+/// <summary>Extended motion of the player's car (packet 13). Per-wheel arrays are ordered RL, RR, FL, FR.</summary>
+public sealed record ChassisInfo
+{
+    public IReadOnlyList<double> SuspensionPosition { get; init; } = [];
+    public IReadOnlyList<double> SuspensionVelocity { get; init; } = [];
+    public IReadOnlyList<double> SuspensionAcceleration { get; init; } = [];
+    /// <summary>Metres per second.</summary>
+    public IReadOnlyList<double> WheelSpeed { get; init; } = [];
+    public IReadOnlyList<double> WheelSlipRatio { get; init; } = [];
+    /// <summary>Radians.</summary>
+    public IReadOnlyList<double> WheelSlipAngle { get; init; } = [];
+    public IReadOnlyList<double> WheelLatForce { get; init; } = [];
+    public IReadOnlyList<double> WheelLongForce { get; init; } = [];
+    public IReadOnlyList<double> WheelVertForce { get; init; } = [];
+    public IReadOnlyList<double> WheelCamber { get; init; } = [];
+    public IReadOnlyList<double> WheelCamberGain { get; init; } = [];
+    public double HeightOfCog { get; init; }
+    /// <summary>Car frame: x right, y up, z forward; metres per second.</summary>
+    public IReadOnlyList<double> LocalVelocity { get; init; } = [];
+    public IReadOnlyList<double> AngularVelocity { get; init; } = [];
+    public IReadOnlyList<double> AngularAcceleration { get; init; } = [];
+    /// <summary>Radians.</summary>
+    public double FrontWheelsAngle { get; init; }
+    /// <summary>Metres.</summary>
+    public double FrontAeroHeight { get; init; }
+    public double RearAeroHeight { get; init; }
+    public double FrontRollAngle { get; init; }
+    public double RearRollAngle { get; init; }
+    public double ChassisYaw { get; init; }
+    public double ChassisPitch { get; init; }
+}
+
+/// <summary>The player's car setup (packet 5).</summary>
+public sealed record SetupInfo
+{
+    public int FrontWing { get; init; }
+    public int RearWing { get; init; }
+    public int OnThrottle { get; init; }
+    public int OffThrottle { get; init; }
+    public double FrontCamber { get; init; }
+    public double RearCamber { get; init; }
+    public double FrontToe { get; init; }
+    public double RearToe { get; init; }
+    public int FrontSuspension { get; init; }
+    public int RearSuspension { get; init; }
+    public int FrontAntiRollBar { get; init; }
+    public int RearAntiRollBar { get; init; }
+    public int FrontRideHeight { get; init; }
+    public int RearRideHeight { get; init; }
+    public int BrakePressure { get; init; }
+    public int BrakeBias { get; init; }
+    public int EngineBraking { get; init; }
+    /// <summary>PSI, ordered RL, RR, FL, FR.</summary>
+    public IReadOnlyList<double> TyresPressure { get; init; } = [];
+    public int Ballast { get; init; }
+    public double FuelLoad { get; init; }
+    public double NextFrontWing { get; init; }
 }
 
 /// <summary>Everything about the player's car. Per-wheel arrays are ordered RL, RR, FL, FR.</summary>
@@ -134,6 +228,8 @@ public sealed record PlayerDetail
     public int SuggestedGear { get; init; }
     public int Rpm { get; init; }
     public int MaxRpm { get; init; }
+    public int IdleRpm { get; init; }
+    public int MaxGears { get; init; }
     public int RevLightsPct { get; init; }
     public int EngineTemp { get; init; }
     public IReadOnlyList<int> BrakesTemp { get; init; } = [];
@@ -144,15 +240,29 @@ public sealed record PlayerDetail
     public IReadOnlyList<int> TyresDamage { get; init; } = [];
     public IReadOnlyList<int> TyreBlisters { get; init; } = [];
     public IReadOnlyList<int> BrakesDamage { get; init; } = [];
+    /// <summary>Surface under each wheel (0 tarmac, 1 rumble strip, 7 grass, ...).</summary>
+    public IReadOnlyList<int> SurfaceType { get; init; } = [];
     public DamageInfo Damage { get; init; } = new();
     public double FuelKg { get; init; }
+    public double FuelCapacityKg { get; init; }
     public double FuelLaps { get; init; }
     public int FuelMix { get; init; }
     public int BrakeBias { get; init; }
+    /// <summary>0 off, 1 medium, 2 full.</summary>
+    public int TractionControl { get; init; }
+    public bool Abs { get; init; }
+    /// <summary>-1 invalid, 0 none, 1 green, 2 blue, 3 yellow.</summary>
+    public int FiaFlag { get; init; }
+    public bool Drs { get; init; }
+    public bool DrsAllowed { get; init; }
+    public int DrsActivationDistance { get; init; }
     public double ErsStoreJ { get; init; }
     public int ErsDeployMode { get; init; }
     public double ErsDeployedLapJ { get; init; }
     public double ErsHarvestedLapJ { get; init; }
+    public double ErsHarvestedMgukLapJ { get; init; }
+    public double ErsHarvestedMguhLapJ { get; init; }
+    public double ErsHarvestLimitLapJ { get; init; }
     public double PowerIceW { get; init; }
     public double PowerMgukW { get; init; }
     public bool PitLimiter { get; init; }
@@ -166,14 +276,25 @@ public sealed record PlayerDetail
     public bool OvertakeActive { get; init; }
     public int OvertakeActivationDistance { get; init; }
     public bool Regs2026 { get; init; }
+    public bool WrongWay { get; init; }
     public double GLat { get; init; }
     public double GLon { get; init; }
+    public double GVert { get; init; }
+    /// <summary>Radians.</summary>
+    public double Yaw { get; init; }
+    public double Pitch { get; init; }
+    public double Roll { get; init; }
     public double LapDistance { get; init; }
     public double CurrentLapMs { get; init; }
     public int Lap { get; init; }
     public int Sector1Ms { get; init; }
     public int Sector2Ms { get; init; }
     public double SpeedTrapKmh { get; init; }
+    public LapInfo Race { get; init; } = new();
+    /// <summary>Null until the game sends extended motion.</summary>
+    public ChassisInfo? Chassis { get; init; }
+    /// <summary>Null until the game sends car setups.</summary>
+    public SetupInfo? Setup { get; init; }
 }
 
 /// <param name="T">Session time in seconds.</param>

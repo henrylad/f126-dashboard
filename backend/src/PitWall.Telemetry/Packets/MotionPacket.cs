@@ -35,3 +35,48 @@ public struct CarMotionData
     public float Pitch;
     public float Roll;
 }
+
+/// <summary>
+/// Extended motion data, for the player's car only (packet id 13). Per-wheel arrays
+/// are ordered RL, RR, FL, FR.
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+public struct MotionExPacket : IPacket
+{
+    public PacketHeader Header;
+    public Wheels<float> SuspensionPosition;
+    public Wheels<float> SuspensionVelocity;
+    public Wheels<float> SuspensionAcceleration;
+    /// <summary>Metres per second.</summary>
+    public Wheels<float> WheelSpeed;
+    public Wheels<float> WheelSlipRatio;
+    /// <summary>Radians.</summary>
+    public Wheels<float> WheelSlipAngle;
+    public Wheels<float> WheelLatForce;
+    public Wheels<float> WheelLongForce;
+    public float HeightOfCogAboveGround;
+    /// <summary>Velocity in the car's own frame, metres per second.</summary>
+    public float LocalVelocityX;
+    public float LocalVelocityY;
+    public float LocalVelocityZ;
+    public float AngularVelocityX;
+    public float AngularVelocityY;
+    public float AngularVelocityZ;
+    public float AngularAccelerationX;
+    public float AngularAccelerationY;
+    public float AngularAccelerationZ;
+    /// <summary>Radians.</summary>
+    public float FrontWheelsAngle;
+    public Wheels<float> WheelVertForce;
+    /// <summary>Front plank edge height above the road, metres.</summary>
+    public float FrontAeroHeight;
+    public float RearAeroHeight;
+    public float FrontRollAngle;
+    public float RearRollAngle;
+    public float ChassisYaw;
+    public float ChassisPitch;
+    public Wheels<float> WheelCamber;
+    public Wheels<float> WheelCamberGain;
+
+    readonly PacketHeader IPacket.Header => Header;
+}

@@ -81,6 +81,8 @@ export interface PlayerDetail {
   suggestedGear: number;
   rpm: number;
   maxRpm: number;
+  idleRpm: number;
+  maxGears: number;
   revLightsPct: number;
   engineTemp: number;
   brakesTemp: Wheels<number>;
@@ -91,19 +93,34 @@ export interface PlayerDetail {
   tyresDamage: Wheels<number>;
   tyreBlisters: Wheels<number>;
   brakesDamage: Wheels<number>;
+  /** Surface under each wheel (see SURFACES). */
+  surfaceType: Wheels<number>;
   damage: {
     frontLeftWing: number; frontRightWing: number; rearWing: number; floor: number;
     diffuser: number; sidepod: number; gearbox: number; engine: number;
     ice: number; mguk: number; mguh: number; es: number; ce: number; tc: number;
+    drsFault: boolean; ersFault: boolean; engineBlown: boolean; engineSeized: boolean;
   };
   fuelKg: number;
+  fuelCapacityKg: number;
   fuelLaps: number;
   fuelMix: number;
   brakeBias: number;
+  /** 0 off, 1 medium, 2 full */
+  tractionControl: number;
+  abs: boolean;
+  /** -1 invalid, 0 none, 1 green, 2 blue, 3 yellow */
+  fiaFlag: number;
+  drs: boolean;
+  drsAllowed: boolean;
+  drsActivationDistance: number;
   ersStoreJ: number;
   ersDeployMode: number;
   ersDeployedLapJ: number;
   ersHarvestedLapJ: number;
+  ersHarvestedMgukLapJ: number;
+  ersHarvestedMguhLapJ: number;
+  ersHarvestLimitLapJ: number;
   powerIceW: number;
   powerMgukW: number;
   pitLimiter: boolean;
@@ -117,14 +134,113 @@ export interface PlayerDetail {
   overtakeActive: boolean;
   overtakeActivationDistance: number;
   regs2026: boolean;
+  wrongWay: boolean;
   gLat: number;
   gLon: number;
+  gVert: number;
+  /** Radians. */
+  yaw: number;
+  pitch: number;
+  roll: number;
   lapDistance: number;
   currentLapMs: number;
   lap: number;
   sector1Ms: number;
   sector2Ms: number;
   speedTrapKmh: number;
+  race: LapInfo;
+  /** Extended motion; null until the game sends it. */
+  chassis: ChassisInfo | null;
+  /** Car setup; null until the game sends it. */
+  setup: SetupInfo | null;
+}
+
+export interface LapInfo {
+  position: number;
+  gridPosition: number;
+  lastLapMs: number;
+  sector: number;
+  currentLapInvalid: boolean;
+  totalDistance: number;
+  gapAheadMs: number;
+  gapLeaderMs: number;
+  safetyCarDelta: number;
+  penaltiesSec: number;
+  totalWarnings: number;
+  cornerCuttingWarnings: number;
+  unservedDriveThroughs: number;
+  unservedStopGos: number;
+  pitStatus: number;
+  numPitStops: number;
+  pitLaneTimerActive: boolean;
+  pitLaneTimeMs: number;
+  pitStopTimerMs: number;
+  servePenaltyAtStop: boolean;
+  driverStatus: number;
+  resultStatus: number;
+  /** 255 when there is no speed-trap pass yet. */
+  speedTrapLap: number;
+}
+
+/** Packet 13. Wheel arrays are [RL, RR, FL, FR]. */
+export interface ChassisInfo {
+  suspensionPosition: Wheels<number>;
+  suspensionVelocity: Wheels<number>;
+  suspensionAcceleration: Wheels<number>;
+  /** m/s */
+  wheelSpeed: Wheels<number>;
+  wheelSlipRatio: Wheels<number>;
+  /** rad */
+  wheelSlipAngle: Wheels<number>;
+  /** N */
+  wheelLatForce: Wheels<number>;
+  wheelLongForce: Wheels<number>;
+  wheelVertForce: Wheels<number>;
+  /** rad */
+  wheelCamber: Wheels<number>;
+  wheelCamberGain: Wheels<number>;
+  /** m */
+  heightOfCog: number;
+  /** [x right, y up, z forward] m/s */
+  localVelocity: [number, number, number];
+  /** rad/s */
+  angularVelocity: [number, number, number];
+  angularAcceleration: [number, number, number];
+  /** rad */
+  frontWheelsAngle: number;
+  /** m */
+  frontAeroHeight: number;
+  rearAeroHeight: number;
+  /** rad */
+  frontRollAngle: number;
+  rearRollAngle: number;
+  chassisYaw: number;
+  chassisPitch: number;
+}
+
+/** Packet 5. */
+export interface SetupInfo {
+  frontWing: number;
+  rearWing: number;
+  onThrottle: number;
+  offThrottle: number;
+  frontCamber: number;
+  rearCamber: number;
+  frontToe: number;
+  rearToe: number;
+  frontSuspension: number;
+  rearSuspension: number;
+  frontAntiRollBar: number;
+  rearAntiRollBar: number;
+  frontRideHeight: number;
+  rearRideHeight: number;
+  brakePressure: number;
+  brakeBias: number;
+  engineBraking: number;
+  tyresPressure: Wheels<number>;
+  ballast: number;
+  fuelLoad: number;
+  nextFrontWing: number;
 }
 
 export interface FeedEvent {

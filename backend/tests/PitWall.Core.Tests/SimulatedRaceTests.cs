@@ -39,6 +39,23 @@ public class SimulatedRaceTests
     }
 
     [Fact]
+    public void Player_detail_carries_chassis_setup_and_lap_data()
+    {
+        var player = Run(seconds: 5).State.Snapshot().Player;
+
+        Assert.NotNull(player);
+        Assert.NotNull(player.Chassis);
+        Assert.Equal(4, player.Chassis.WheelVertForce.Count);
+        Assert.All(player.Chassis.WheelVertForce, f => Assert.True(f > 0));
+        Assert.True(player.Chassis.FrontAeroHeight > 0);
+        Assert.NotNull(player.Setup);
+        Assert.Equal(55, player.Setup.BrakeBias);
+        Assert.Equal(1, player.Race.Position);
+        Assert.Equal(8_500_000, player.ErsHarvestLimitLapJ);
+        Assert.Equal(110, player.FuelCapacityKg);
+    }
+
+    [Fact]
     public void Laps_are_recorded_for_the_player_and_the_field()
     {
         // Lap 1 starts on the grid, so it takes two more laps for a timed lap to exist.

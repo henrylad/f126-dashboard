@@ -11,7 +11,7 @@ public enum DecodeStatus
     TooShort,
     /// <summary>Not <see cref="PacketFormat.Version"/>, e.g. the game is set to the 2025 format.</summary>
     WrongFormat,
-    /// <summary>A valid packet this library has no layout for (setups, lobby, ...).</summary>
+    /// <summary>A valid packet this library has no layout for (lobby, tyre sets, ...).</summary>
     Unhandled,
 }
 
@@ -46,10 +46,12 @@ public static class PacketCodec
             PacketId.LapData => Read<LapDataPacket>(data, header),
             PacketId.Event => Read<EventPacket>(data, header),
             PacketId.Participants => Read<ParticipantsPacket>(data, header),
+            PacketId.CarSetups => Read<CarSetupsPacket>(data, header),
             PacketId.CarTelemetry => Read<CarTelemetryPacket>(data, header),
             PacketId.CarStatus => Read<CarStatusPacket>(data, header),
             PacketId.CarDamage => Read<CarDamagePacket>(data, header),
             PacketId.SessionHistory => Read<SessionHistoryPacket>(data, header),
+            PacketId.ExtendedMotion => Read<MotionExPacket>(data, header),
             PacketId.LapPositions => Read<LapPositionsPacket>(data, header),
             PacketId.CarTelemetry2 => Read<CarTelemetry2Packet>(data, header),
             _ => new(DecodeStatus.Unhandled, header, null),

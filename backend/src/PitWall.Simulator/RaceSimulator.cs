@@ -36,6 +36,8 @@ public sealed class RaceSimulator
         /// <summary>Total distance; starts negative on the grid.</summary>
         public double Dist = grid;
         public double Speed, Accel;
+        /// <summary>Acceleration smoothed like a real chassis would feel it; the speed profile steps every 5 m.</summary>
+        public double FeltAccel;
         public double LapStartT;
         public readonly List<(int T, int S1, int S2)> LapTimes = [];
         public int S1, S2;
@@ -60,6 +62,13 @@ public sealed class RaceSimulator
     private uint _frame;
     private int _historyCursor;
     private double _overallBest = double.PositiveInfinity;
+    // Player chassis state, for suspension velocity and angular acceleration.
+    private readonly double[] _suspension = new double[4];
+    private readonly double[] _suspensionVelocity = new double[4];
+    private double _yawRate;
+
+    private const int PlayerIdx = 0;
+    private const double CarMassKg = 800;
 
     public RaceSimulator(Random? random = null)
     {
@@ -110,7 +119,9 @@ public sealed class RaceSimulator
         Send(telemetry);
         Send(status);
         Send(telemetry2);
+        Send(MotionEx(_cars[PlayerIdx]));
         if (_frame % 3 == 0) Send(Damage());
+        if (_frame % 15 == 0) Send(Setups());
         if (_frame % 15 == 0) Send(Session());
         if (_frame % 30 == 0) Send(Participants());
         Send(History());
@@ -133,6 +144,7 @@ public sealed class RaceSimulator
         var prev = car.Speed;
         car.Speed = prev < target ? Math.Min(target, prev + 16 * Dt) : Math.Max(target, prev - SimTrack.Braking * 1.1 * Dt);
         car.Accel = (car.Speed - prev) / Dt;
+        car.FeltAccel += (car.Accel - car.FeltAccel) * 0.15;
         car.Dist += car.Speed * Dt;
         var bin = (int)Math.Floor(car.Dist / 10);
         for (var b = car.PassTimes.Count; b <= bin; b++) car.PassTimes.Add(_t);
@@ -229,10 +241,103 @@ public sealed class RaceSimulator
             WorldRightDirX = Quantise(-fz, PacketFormat.DirectionScale),
             WorldRightDirZ = Quantise(fx, PacketFormat.DirectionScale),
             GForceLateral = Quantise(c.Speed * c.Speed * _track.Curvature[i] / g, PacketFormat.GForceScale),
-            GForceLongitudinal = Quantise(c.Accel / g, PacketFormat.GForceScale),
+            GForceLongitudinal = Quantise(c.FeltAccel / g, PacketFormat.GForceScale),
             GForceVertical = Quantise(1, PacketFormat.GForceScale),
             Yaw = (float)Math.Atan2(fx, fz),
+            Pitch = (float)(-c.FeltAccel / g * 0.004),
+            Roll = (float)(c.Speed * c.Speed * _track.Curvature[i] / g * 0.005),
         };
+    }
+
+    /// <summary>
+    /// Extended motion for the player: loads from weight, downforce and load transfer;
+    /// suspension follows the load; slip from throttle, braking and cornering.
+    /// </summary>
+    private MotionExPacket MotionEx(SimCar c)
+    {
+        const double g = 9.81, cogHeight = 0.28, track = 1.6, wheelbase = 3.6;
+        var i = _track.IndexAt(c.Dist);
+        var v = Math.Max(0, c.Speed);
+        var latAcc = v * v * _track.Curvature[i];
+        var latG = latAcc / g;
+        var lonG = c.FeltAccel / g;
+        var downforce = 2.4 * v * v;
+        var latTransfer = CarMassKg * latAcc * cogHeight / track / 2;
+        var lonTransfer = CarMassKg * c.FeltAccel * cogHeight / wheelbase / 2;
+
+        var m = new MotionExPacket { Header = Header(PacketId.ExtendedMotion) };
+        double totalLoad = 0;
+        for (var w = 0; w < 4; w++)
+        {
+            var front = w >= 2;
+            var right = w % 2 == 1;
+            var load = (CarMassKg * g + downforce) * (front ? 0.45 : 0.55) / 2
+                + (right ? latTransfer : -latTransfer)
+                + (front ? -lonTransfer : lonTransfer);
+            m.WheelVertForce[w] = (float)Math.Max(0, load);
+            totalLoad += Math.Max(0, load);
+        }
+        for (var w = 0; w < 4; w++)
+        {
+            var front = w >= 2;
+            var share = m.WheelVertForce[w] / Math.Max(1, totalLoad);
+            var slip = c.Brake > 0.05 ? -(front ? 0.06 : 0.04) * c.Brake
+                : !front ? 0.025 * c.Throttle * Math.Max(0, 1 - v / 60) + 0.004 * c.Throttle : 0.002;
+            m.WheelSlipRatio[w] = (float)slip;
+            m.WheelSpeed[w] = (float)(v * (1 + slip));
+            m.WheelSlipAngle[w] = (float)(latG * (front ? 0.012 : 0.010));
+            m.WheelLatForce[w] = (float)(CarMassKg * latAcc * share);
+            m.WheelLongForce[w] = (float)(CarMassKg * c.FeltAccel * share);
+
+            // Suspension travel in mm, compressed by load.
+            var pos = m.WheelVertForce[w] / (front ? 220.0 : 260.0);
+            var vel = (pos - _suspension[w]) / Dt;
+            m.SuspensionPosition[w] = (float)pos;
+            m.SuspensionVelocity[w] = (float)vel;
+            m.SuspensionAcceleration[w] = (float)((vel - _suspensionVelocity[w]) / Dt);
+            _suspension[w] = pos;
+            _suspensionVelocity[w] = vel;
+
+            m.WheelCamber[w] = (float)(front ? -0.056 : -0.031);
+            m.WheelCamberGain[w] = (float)(latG * (w % 2 == 1 ? 0.002 : -0.002));
+        }
+
+        var yawRate = v * _track.Curvature[i];
+        var q = (i + 1) % _track.Count;
+        m.HeightOfCogAboveGround = (float)(cogHeight - 0.000002 * v * v);
+        m.LocalVelocityX = (float)(v * m.WheelSlipAngle[0] * 0.3);
+        m.LocalVelocityZ = (float)v;
+        m.AngularVelocityY = (float)yawRate;
+        m.AngularAccelerationY = (float)((yawRate - _yawRate) / Dt);
+        _yawRate = yawRate;
+        m.FrontWheelsAngle = (float)(Math.Clamp(_track.Curvature[i] * 60, -1, 1) * 0.3);
+        m.FrontAeroHeight = (float)Math.Max(0.004, 0.035 - 0.0000022 * v * v + lonG * 0.002);
+        m.RearAeroHeight = (float)Math.Max(0.01, 0.075 - 0.0000040 * v * v - lonG * 0.002);
+        m.FrontRollAngle = (float)(latG * 0.004);
+        m.RearRollAngle = (float)(latG * 0.005);
+        m.ChassisYaw = (float)Math.Atan2(_track.X[q] - _track.X[i], _track.Z[q] - _track.Z[i]);
+        m.ChassisPitch = (float)(-lonG * 0.004);
+        return m;
+    }
+
+    private CarSetupsPacket Setups()
+    {
+        var packet = new CarSetupsPacket { Header = Header(PacketId.CarSetups), NextFrontWingValue = 28 };
+        for (var ci = 0; ci < _cars.Length; ci++)
+        {
+            packet.Cars[ci] = new CarSetupData
+            {
+                FrontWing = 28, RearWing = 24, OnThrottle = 60, OffThrottle = 55,
+                FrontCamber = -3.2f, RearCamber = -1.8f, FrontToe = 0.05f, RearToe = 0.2f,
+                FrontSuspension = 32, RearSuspension = 14, FrontAntiRollBar = 18, RearAntiRollBar = 9,
+                FrontSuspensionHeight = 24, RearSuspensionHeight = 58,
+                BrakePressure = 100, BrakeBias = 55, EngineBraking = 60,
+                Ballast = 6, FuelLoad = 100,
+            };
+            double[] psi = [21.2, 21.2, 23.1, 23.1];
+            for (var w = 0; w < 4; w++) packet.Cars[ci].TyresPressure[w] = (float)psi[w];
+        }
+        return packet;
     }
 
     private static short Quantise(double value, float scale) => (short)Math.Clamp(Math.Round(value * scale), short.MinValue, short.MaxValue);
@@ -320,6 +425,7 @@ public sealed class RaceSimulator
         ErsStoreEnergy = (float)c.Ers,
         ErsDeployMode = (byte)(c.Overtake ? 3 : 1),
         ErsHarvestedThisLapMguk = (float)c.ErsHarvestLap,
+        ErsHarvestedThisLapMguh = 0, // no MGU-H under the 2026 rules
         ErsHarvestLimitPerLap = 8_500_000,
         ErsDeployedThisLap = (float)c.ErsDeployedLap,
     };
@@ -473,7 +579,7 @@ public sealed class RaceSimulator
         SessionTime = (float)_t,
         FrameIdentifier = _frame,
         OverallFrameIdentifier = _frame,
-        PlayerCarIndex = 0,
+        PlayerCarIndex = PlayerIdx,
         SecondaryPlayerCarIndex = 255,
     };
 

@@ -22,6 +22,8 @@ public class PacketCodecTests
         { nameof(SessionHistoryPacket), PacketCodec.SizeOf<SessionHistoryPacket>(), 1460 },
         { nameof(LapPositionsPacket), PacketCodec.SizeOf<LapPositionsPacket>(), 1231 },
         { nameof(CarTelemetry2Packet), PacketCodec.SizeOf<CarTelemetry2Packet>(), 269 },
+        { nameof(MotionExPacket), PacketCodec.SizeOf<MotionExPacket>(), 273 },
+        { nameof(CarSetupsPacket), PacketCodec.SizeOf<CarSetupsPacket>(), 1233 },
     };
 
     [Theory]
@@ -73,6 +75,39 @@ public class PacketCodecTests
         Assert.Equal(1, got.Cars[0].ActiveAeroMode);
         Assert.True(got.Cars[0].OvertakeActive);
         Assert.Equal(812, got.Cars[0].OvertakeActivationDistance);
+    }
+
+    [Fact]
+    public void Reads_extended_motion_at_the_published_offsets()
+    {
+        var bytes = PacketCodec.Encode(new MotionExPacket { Header = Header(PacketId.ExtendedMotion) });
+        // Written by hand: wheel slip ratio FR is float 19, front aero height float 47.
+        BitConverter.TryWriteBytes(bytes.AsSpan(PacketCodec.HeaderSize + 19 * 4), 0.08f);
+        BitConverter.TryWriteBytes(bytes.AsSpan(PacketCodec.HeaderSize + 47 * 4), 0.031f);
+        BitConverter.TryWriteBytes(bytes.AsSpan(bytes.Length - 4), -1.5f);
+
+        var got = Assert.IsType<MotionExPacket>(PacketCodec.Decode(bytes).Packet);
+
+        Assert.Equal(0.08f, got.WheelSlipRatio[3]);
+        Assert.Equal(0.031f, got.FrontAeroHeight);
+        Assert.Equal(-1.5f, got.WheelCamberGain[3]);
+    }
+
+    [Fact]
+    public void Round_trips_car_setups()
+    {
+        var sent = new CarSetupsPacket { Header = Header(PacketId.CarSetups), NextFrontWingValue = 31 };
+        sent.Cars[3] = new CarSetupData { FrontWing = 30, OnThrottle = 70, FrontCamber = -3.2f, BrakeBias = 56, FuelLoad = 24.5f };
+        sent.Cars[3].TyresPressure[2] = 25.1f;
+
+        var got = Assert.IsType<CarSetupsPacket>(PacketCodec.Decode(PacketCodec.Encode(sent)).Packet);
+
+        Assert.Equal(70, got.Cars[3].OnThrottle);
+        Assert.Equal(-3.2f, got.Cars[3].FrontCamber);
+        Assert.Equal(56, got.Cars[3].BrakeBias);
+        Assert.Equal(25.1f, got.Cars[3].TyresPressure[2]);
+        Assert.Equal(24.5f, got.Cars[3].FuelLoad);
+        Assert.Equal(31f, got.NextFrontWingValue);
     }
 
     [Fact]
@@ -133,7 +168,7 @@ public class PacketCodecTests
     [Fact]
     public void Reports_packets_without_a_layout_as_unhandled()
     {
-        var header = Header(PacketId.CarSetups);
+        var header = Header(PacketId.TyreSets);
         var bytes = MemoryMarshal.AsBytes(new ReadOnlySpan<PacketHeader>(in header)).ToArray();
 
         Assert.Equal(DecodeStatus.Unhandled, PacketCodec.Decode(bytes).Status);

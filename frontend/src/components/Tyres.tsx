@@ -5,7 +5,7 @@ import { ACTUAL_TO_LABEL, compound } from '../lib/meta.ts';
 const COLD = [77, 157, 255], OPT = [201, 209, 234], HOT = [255, 77, 77];
 const WINDOW = { lo: 80, opt: 98, hi: 118 };
 
-function tempColour(t: number): string {
+export function tempColour(t: number): string {
   const mix = (a: number[], b: number[], f: number) =>
     `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * Math.max(0, Math.min(1, f)))).join(',')})`;
   return t < WINDOW.opt
