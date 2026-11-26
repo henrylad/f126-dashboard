@@ -1,5 +1,35 @@
 # Pit Wall — F1 25 · 2026 Season telemetry dashboard
 
+## Quick start
+
+You need [Git](https://git-scm.com/) and [Docker](https://www.docker.com/products/docker-desktop/)
+(Docker Desktop on Windows and macOS). The same commands work in Windows cmd, PowerShell and
+a Linux or macOS terminal.
+
+```bash
+git clone https://github.com/henrylad/f126-dashboard.git
+cd f126-dashboard
+docker compose up -d --build
+```
+
+1. Open **<http://localhost:5173>** (from another device: `http://<this PC's IP>:5173`).
+2. In F1 25 go to **Settings → Telemetry Settings** and set *UDP Telemetry* **On**,
+   *UDP Format* **2026**, *UDP IP Address* to this PC's LAN IP and *UDP Port* **20777**
+   ([all settings](#game-settings)).
+3. Drive. The dashboard fills in as soon as the first packets arrive.
+
+| | |
+|---|---|
+| Update | `git pull` then `docker compose up -d --build` |
+| Stop | `docker compose down` |
+| No game? Simulated race | `docker compose down` then `docker compose run --rm --service-ports pitwall --sim` (Ctrl+C to stop) |
+| Logs | `docker compose logs -f` |
+
+Your laps are kept in `./data`, recordings in `./recordings`. To run it without Docker, see
+[Run it](#run-it).
+
+## About
+
 A live pit-wall dashboard for **EA F1 25 with the 2026 Season Pack** ("F1 26"). It turns the
 game's UDP telemetry into what a driver needs to get faster: where a lap loses time, how the
 battery was deployed, and everything the car reports, including the new 2026 **active aero**
