@@ -1,20 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { interpolate, theoreticalBest, type Lap, type Sample } from './lapMath.ts';
+import { interpolate, theoreticalBest } from './lapMath.ts';
+import { lap, sample } from './testLaps.ts';
 
-const sample = (d: number, t: number, speed = 200): Sample => ({ d, t, speed, throttle: 1, brake: 0, gear: 7, ers: 3e6, mode: 1 });
-
-export function lap(id: number, timeMs: number, minis: number[], kind: Lap['kind'] = 'timed', samples?: Sample[]): Lap {
-  return {
-    id, carIdx: 0, lap: id, kind, timeMs,
-    sectors: [null, null, null],
-    samples: samples ?? [sample(0, 0), sample(1000, timeMs)],
-    minis: minis.map((ms) => ({ ms, colour: 1 as const })),
-    stats: {
-      topSpeed: 300, avgSpeed: 200, fullThrottlePct: 60, brakingPct: 10, deployedJ: 0, harvestedJ: 0, boostPct: 0,
-      ersStartJ: 0, ersEndJ: 0, fuelUsedKg: null, wearDeltaPct: null, compound: 17, tyreAge: 1, gearChanges: 0,
-    },
-  };
-}
 
 describe('interpolate', () => {
   const s = [sample(0, 0, 100), sample(100, 1000, 200), sample(200, 2000, 300)];

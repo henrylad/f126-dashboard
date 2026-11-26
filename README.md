@@ -22,7 +22,8 @@ The UDP parser is written from scratch (`backend/src/PitWall.Telemetry`) for
   under the live traces, and any time window exports as CSV.
 - **Lap analysis**: compare any of your laps with each other, with other drivers' fastest
   laps and with your fastest laps on the track from earlier sessions; it leads with the loss
-  zones (where, how much, and why) and zooms every chart to them. Compared laps export as CSV.
+  zones (where, how much, and why) and zooms every chart to them. Compared laps export as CSV
+  (every sample, including steering, RPM, G-forces and wheel slip), and so does the lap table.
 - A **lap library**: every clean timed lap is kept in a SQLite file (`data/pitwall.db`), so
   the next session on the same track can be measured against your all-time best.
 - An **analysis prompt** for Claude ([docs/analysis-prompt.md](docs/analysis-prompt.md)):

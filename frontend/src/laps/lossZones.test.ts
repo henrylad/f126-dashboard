@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Sample } from './lapMath.ts';
 import { deltaTo, hasTelemetry, verdict } from './lossZones.ts';
-import { lap } from './lapMath.test.ts';
+import { lap } from './testLaps.ts';
 
 const LEN = 4000;
 
@@ -12,7 +12,7 @@ function trace(slowFrom = -1, slowTo = -1): Sample[] {
   for (let d = 0; d <= LEN; d += 10) {
     const v = d > slowFrom && d <= slowTo ? 25 : 50;
     if (d > 0) t += (10 / v) * 1000;
-    out.push({ d, t, speed: v * 3.6, throttle: v === 50 ? 1 : 0.4, brake: 0, gear: 7, ers: 3e6, mode: 1 });
+    out.push({ d, t, speed: v * 3.6, throttle: v === 50 ? 1 : 0.4, brake: 0, gear: 7, ers: 3e6, mode: 1, steer: 0, rpm: 11000, gLat: 0, gLon: 0, slipFront: null, slipRear: null });
   }
   return out;
 }

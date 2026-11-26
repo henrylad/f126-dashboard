@@ -100,6 +100,13 @@ public sealed record CarRow
     public int ErsDeployMode { get; init; }
     public double FuelKg { get; init; }
     public double TyreWearAvg { get; init; }
+    public double Steer { get; init; }
+    public int Rpm { get; init; }
+    public double GLat { get; init; }
+    public double GLon { get; init; }
+    /// <summary>Mean slip ratio per axle in %; only for the player, from extended motion.</summary>
+    public double? SlipFront { get; init; }
+    public double? SlipRear { get; init; }
 }
 
 /// <summary>Wear and damage percentages of the player's car.</summary>

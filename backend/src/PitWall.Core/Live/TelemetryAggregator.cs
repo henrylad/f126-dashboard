@@ -225,6 +225,13 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
                 ErsDeployMode = status?.ErsDeployMode ?? 0,
                 FuelKg = status?.FuelInTank ?? 0,
                 TyreWearAvg = damage is { } d ? Average(d.TyresWear) : 0,
+                Steer = tel?.Steer ?? 0,
+                Rpm = tel?.EngineRpm ?? 0,
+                GLat = motion is { } m ? m.GForceLateral / PacketFormat.GForceScale : 0,
+                GLon = motion is { } m2 ? m2.GForceLongitudinal / PacketFormat.GForceScale : 0,
+                // Wheel arrays are RL, RR, FL, FR.
+                SlipFront = i == playerIdx && _motionEx is { } mx ? (mx.WheelSlipRatio[2] + mx.WheelSlipRatio[3]) / 2 * 100 : null,
+                SlipRear = i == playerIdx && _motionEx is { } mx2 ? (mx2.WheelSlipRatio[0] + mx2.WheelSlipRatio[1]) / 2 * 100 : null,
             });
         }
         return [.. rows.OrderBy(r => r.Position)];

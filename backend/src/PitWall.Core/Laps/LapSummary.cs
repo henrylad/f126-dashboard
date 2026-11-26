@@ -118,7 +118,13 @@ public static class LapSummary
                 Brake: Round(s.Brake, 2),
                 Gear: s.Gear,
                 Ers: Round(s.Ers),
-                Mode: s.Mode));
+                Mode: s.Mode,
+                Steer: Round(s.Steer, 2),
+                Rpm: s.Rpm,
+                GLat: Round(s.GLat, 2),
+                GLon: Round(s.GLon, 2),
+                SlipFront: s.SlipFront is { } f ? Round(f, 1) : null,
+                SlipRear: s.SlipRear is { } r ? Round(r, 1) : null));
         }
         return result;
     }

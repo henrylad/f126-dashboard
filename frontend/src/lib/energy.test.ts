@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Sample } from '../laps/lapMath.ts';
 import { energyBins, energyState } from './energy.ts';
 
-const s = (d: number, ers: number, mode = 1): Sample => ({ d, t: d, speed: 200, throttle: 1, brake: 0, gear: 7, ers, mode });
+const s = (d: number, ers: number, mode = 1): Sample => ({ d, t: d, speed: 200, throttle: 1, brake: 0, gear: 7, ers, mode, steer: 0, rpm: 11000, gLat: 0, gLon: 0, slipFront: null, slipRear: null });
 
 describe('energyState', () => {
   it('reads a rising store as harvesting, whatever the mode', () => {

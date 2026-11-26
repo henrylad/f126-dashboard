@@ -70,4 +70,21 @@ public class SimulatedRaceTests
         Assert.NotEmpty(laps.DriverBests());
         Assert.True(laps.OutlineFilled > LapTracker.OutlineBins * 0.9);
     }
+
+    [Fact]
+    public void Lap_samples_carry_steering_revs_g_forces_and_the_players_slip()
+    {
+        var (_, laps) = Run(seconds: 200);
+        var mine = laps.PlayerBestLap!.Samples;
+        var theirs = laps.DriverBests()[0].Samples;
+
+        Assert.Contains(mine, s => s.Rpm > 10_000);
+        Assert.Contains(mine, s => Math.Abs(s.Steer) > 0.2);
+        Assert.Contains(mine, s => Math.Abs(s.GLat) > 1);
+        Assert.Contains(mine, s => s.GLon < -1);
+        Assert.All(mine, s => Assert.NotNull(s.SlipRear));
+        // Other cars send no extended motion.
+        Assert.All(theirs, s => Assert.Null(s.SlipRear));
+        Assert.Contains(theirs, s => s.Rpm > 10_000);
+    }
 }

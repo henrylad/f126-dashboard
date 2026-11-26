@@ -15,17 +15,47 @@ export function toCsv(header: string[], rows: Cell[][]): string {
   return [header, ...rows].map((r) => r.map(cell).join(',')).join('\n') + '\n';
 }
 
-/** Every sample of the given laps, one row each, labelled per lap. */
+/** Every sample of the given laps (about one every 4 m), one row each, labelled per lap. */
 export function lapsCsv(laps: { lap: Lap; label: string }[]): string {
-  const header = ['lap', 'lap_number', 'kind', 'lap_time_ms', 'distance_m', 'time_ms', 'speed_kmh', 'throttle', 'brake', 'gear', 'ers_j', 'ers_mode'];
+  const header = [
+    'lap', 'lap_number', 'kind', 'lap_time_ms', 'distance_m', 'time_ms', 'speed_kmh', 'throttle', 'brake', 'gear',
+    'rpm', 'steer', 'g_lat', 'g_lon', 'ers_j', 'ers_mode', 'slip_front_pct', 'slip_rear_pct',
+  ];
   const rows: Cell[][] = [];
   for (const { lap, label } of laps) {
     for (const s of lap.samples) {
-      rows.push([label, lap.lap, lap.kind, lap.timeMs, s.d, s.t, s.speed, s.throttle, s.brake, s.gear, s.ers, s.mode]);
+      rows.push([
+        label, lap.lap, lap.kind, lap.timeMs, s.d, s.t, s.speed, s.throttle, s.brake, s.gear,
+        s.rpm, s.steer, s.gLat, s.gLon, s.ers, s.mode, s.slipFront, s.slipRear,
+      ]);
     }
   }
   return toCsv(header, rows);
 }
+
+/** One row per lap: times, sectors and the lap's stats, as in the Lap data table. */
+export function lapSummaryCsv(laps: { lap: Lap; label: string; group: string }[]): string {
+  const header = [
+    'group', 'lap', 'lap_number', 'kind', 'lap_time_ms', 's1_ms', 's2_ms', 's3_ms', 'top_speed_kmh', 'avg_speed_kmh',
+    'full_throttle_pct', 'braking_pct', 'gear_changes', 'deployed_mj', 'harvested_mj', 'net_mj', 'boost_pct',
+    'battery_start_mj', 'battery_end_mj', 'fuel_used_kg', 'tyre_wear_added_pct', 'compound', 'tyre_age_laps', 'saved_at',
+  ];
+  const rows: Cell[][] = laps.map(({ lap: l, label, group }) => {
+    const s = l.stats;
+    return [
+      group, label, l.lap, l.kind, l.timeMs, ms(l.sectors[0]), ms(l.sectors[1]), ms(l.sectors[2]), s.topSpeed, s.avgSpeed,
+      s.fullThrottlePct, s.brakingPct, s.gearChanges, s.deployedJ / 1e6, s.harvestedJ / 1e6, (s.harvestedJ - s.deployedJ) / 1e6, s.boostPct,
+      s.ersStartJ / 1e6, s.ersEndJ / 1e6, s.fuelUsedKg, s.wearDeltaPct, COMPOUND_NAMES[s.compound] ?? s.compound, s.tyreAge, l.saved?.savedAt ?? null,
+    ];
+  });
+  return toCsv(header, rows);
+}
+
+/** Sector times are interpolated; whole milliseconds are all the game resolves. */
+const ms = (v: number | null) => (v === null ? null : Math.round(v));
+
+/** Visual compounds as the game names them. */
+const COMPOUND_NAMES: Record<number, string> = { 16: 'soft', 17: 'medium', 18: 'hard', 7: 'inter', 8: 'wet' };
 
 /** The Telemetry tab's rolling buffer between two session times. */
 export function windowCsv(samples: TSample[], from: number, to: number): string {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ERS_MAX_J } from '../../api/types.ts';
 import { C, beginFrame, clipped, drawPanelLabel, layoutPanels, observeSize, type Frame, type Panel } from '../../lib/chart.ts';
 import { ENERGY, ERS_MODES } from '../../lib/meta.ts';
-import { interpolate, type Sample } from '../../laps/lapMath.ts';
+import { interpolate, type NumKey, type Sample } from '../../laps/lapMath.ts';
 import type { TelemetryHistory, TSample } from './history.ts';
 
 const SANS = '"Geist Variable", system-ui, sans-serif';
@@ -15,7 +15,7 @@ const DEPLOY = [ENERGY[1].colour, ENERGY[1].colour, ENERGY[2].colour, ENERGY[3].
 
 type Get = (s: TSample) => number | null;
 /** `ref` names the best-lap channel drawn dashed under this line at the same lap distance. */
-interface Line { get: Get; colour: string; label: string; fill?: boolean; step?: boolean; width?: number; ref?: keyof Sample }
+interface Line { get: Get; colour: string; label: string; fill?: boolean; step?: boolean; width?: number; ref?: NumKey }
 
 export interface ChannelDef {
   key: string;
@@ -123,7 +123,7 @@ function thin(vis: TSample[], plotW: number): TSample[] {
 }
 
 /** The best lap's value where the car was at this sample, or null off the lap. */
-function refAt(ref: Sample[] | null, s: TSample, key: keyof Sample): number | null {
+function refAt(ref: Sample[] | null, s: TSample, key: NumKey): number | null {
   return ref && s.d >= 0 ? interpolate(ref, s.d, key) : null;
 }
 

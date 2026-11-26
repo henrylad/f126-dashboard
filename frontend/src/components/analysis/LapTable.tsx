@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Lap } from '../../laps/lapMath.ts';
 import { compound } from '../../lib/meta.ts';
 import { savedDate } from '../../laps/lapMath.ts';
-import { download, lapsCsv, stamp } from '../../lib/csv.ts';
+import { download, lapSummaryCsv, lapsCsv, stamp } from '../../lib/csv.ts';
 import { code, delta as fmtDelta, lapTime, sectorTime } from '../../lib/format.ts';
 import type { Bests } from './LapAnalysis.tsx';
 
@@ -54,6 +54,7 @@ interface Props {
   laps: Lap[];
   driverLaps: Lap[];
   savedLaps: Lap[];
+  labelOf: (l: Lap) => string;
   ownerOf: (l: Lap) => { name: string; colour: string };
   bests: Bests;
   refLap: Lap | null;
@@ -73,7 +74,7 @@ const Arrow = ({ dir }: { dir: 1 | -1 }) => (
   </svg>
 );
 
-export function LapTable({ headingId, laps, driverLaps, savedLaps, ownerOf, bests, refLap, colourOf, compared }: Props) {
+export function LapTable({ headingId, laps, driverLaps, savedLaps, labelOf, ownerOf, bests, refLap, colourOf, compared }: Props) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'order', dir: 1 });
   const [all, setAll] = useState(false);
   const cols = all ? [...CORE, ...MORE] : CORE;
@@ -86,6 +87,12 @@ export function LapTable({ headingId, laps, driverLaps, savedLaps, ownerOf, best
     if (vb === null) return -1;
     return (va - vb) * sort.dir;
   });
+
+  const exportTable = () => download(`pitwall-lap-table-${stamp()}.csv`, lapSummaryCsv([
+    ...sorted(laps).map((lap) => ({ lap, label: labelOf(lap), group: 'yours' })),
+    ...sorted(savedLaps).map((lap) => ({ lap, label: labelOf(lap), group: 'earlier session' })),
+    ...sorted(driverLaps).map((lap) => ({ lap, label: labelOf(lap), group: 'driver best' })),
+  ]));
 
   const header = (
     <tr>
@@ -162,6 +169,9 @@ export function LapTable({ headingId, laps, driverLaps, savedLaps, ownerOf, best
           <button className="btn" disabled={!compared.length} onClick={() => download(`pitwall-laps-${stamp()}.csv`, lapsCsv(compared))}
             title={compared.length ? 'Download every sample of the compared laps as CSV' : 'Pick laps to compare first'}>
             Export compared (CSV)
+          </button>
+          <button className="btn" onClick={exportTable} title="Download this table, one row per lap with sectors and stats, as CSV">
+            Export table (CSV)
           </button>
           <button className="btn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? 'Fewer columns' : 'All columns'}</button>
         </span>

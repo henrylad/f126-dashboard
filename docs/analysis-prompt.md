@@ -6,7 +6,8 @@ where on the lap you lose time, why, and what to do differently.
 ## Getting the data
 
 1. **Lap comparison**: in **Lap analysis**, tick your lap and a reference (your best lap,
-   *Me vs all-time best*, or another driver), then press **Export compared (CSV)**.
+   *Me vs all-time best*, or another driver), then press **Export compared (CSV)**. Add
+   **Export table (CSV)** for sectors, energy and tyre stats of every lap.
 2. **Driving detail** (wheel slip, G-forces, battery flow): on the **Telemetry** tab, pick a
    time window, press **Hold** at the moment you want, then **CSV**. Good for one corner the
    lap comparison pointed at.
@@ -25,19 +26,31 @@ the lap I lose time, why, and what I should drive differently.
 
 ## The data
 
-There are two kinds of CSV file:
+There are three kinds of CSV file:
 
-1. Lap export (from "Lap analysis", one row per sample, ~30 Hz):
+1. Lap export (from "Lap analysis", one row per sample, about one every 4 m):
    lap, lap_number, kind, lap_time_ms, distance_m, time_ms, speed_kmh,
-   throttle (0–1), brake (0–1), gear, ers_j, ers_mode
+   throttle (0–1), brake (0–1), gear, rpm, steer (−1 left … +1 right),
+   g_lat, g_lon, ers_j, ers_mode, slip_front_pct, slip_rear_pct
    - "lap" is the lap's label, e.g. "L7", "26 Nov L3" (earlier session) or
      "ALO L5" (another driver).
    - kind: timed = valid timed lap; invalid/out/in/pit/partial aren't comparable.
    - distance_m = position on the lap from the line, time_ms = lap time there.
    - ers_j = battery charge in joules (full = 4,000,000 J = 4 MJ).
    - ers_mode: 0 None, 1 Medium, 2 Hotlap, 3 Boost (overtake).
+   - g_lat/g_lon: G-forces; g_lon below zero is braking.
+   - slip_*_pct: mean wheel slip per axle, only on my own laps (empty for
+     other drivers and laps from before this was recorded).
 
-2. Time-window export (from "Telemetry", session time instead of distance):
+2. Lap table (from "Lap analysis", one row per lap): group (yours /
+   earlier session / driver best), lap, kind, lap_time_ms, s1_ms, s2_ms, s3_ms,
+   top and average speed, full_throttle_pct, braking_pct, gear_changes,
+   deployed_mj, harvested_mj, net_mj, boost_pct, battery_start_mj,
+   battery_end_mj, fuel_used_kg, tyre_wear_added_pct, compound, tyre_age_laps.
+   Use it for the big picture: which sectors cost time, how consistent I am,
+   how energy use and tyre wear develop over a stint.
+
+3. Time-window export (from "Telemetry", session time instead of distance):
    session_time_s, lap, lap_distance_m, speed_kmh, throttle, brake,
    steer (−1 left … +1 right), gear, rpm, ers_j, ers_mode,
    battery_flow_kw (+ = deploy, − = harvest), ice_kw, mguk_kw, g_lat, g_lon,
@@ -72,7 +85,7 @@ If you can run code, calculate. Don't estimate what you can compute.
      throttle and brake, shift points.
    - Energy: ers_mode and the battery trace (deploy or harvest), Boost use,
      and whether I'm clipped on the straight because the battery is empty.
-   - Traction / lock-ups (time-window export only): slip and G-forces.
+   - Traction / lock-ups: slip and G-forces (lap export or time window).
    Important: time lost on a corner exit often only shows on the straight
    after it. Attribute the loss to where its cause is, not to where the
    delta grows.
@@ -99,8 +112,8 @@ If you can run code, calculate. Don't estimate what you can compute.
 - Argue only from the data. Don't invent corner names: give distances. Name
   corners only if I tell you the track and you're sure of the mapping;
   otherwise mark them as a guess.
-- Time lost in seconds to 3 decimals, distances to ~5 m. At 30 Hz and
-  300 km/h samples are ~3 m apart, so don't claim false precision.
+- Time lost in seconds to 3 decimals, distances to ~5 m. Lap exports keep a
+  sample about every 4 m, so don't claim false precision.
 - If a lap isn't comparable (invalid, pit lane, flashback, private telemetry
   that's all zeros), say so and leave it out.
 - Keep "the data shows" clearly apart from "I suspect".
@@ -118,11 +131,12 @@ fahren soll. Antworte auf Deutsch.
 
 ## Die Daten
 
-Es gibt zwei Arten von CSV-Dateien:
+Es gibt drei Arten von CSV-Dateien:
 
-1. Runden-Export (aus "Lap analysis", eine Zeile pro Messpunkt, ~30 Hz):
+1. Runden-Export (aus "Lap analysis", eine Zeile pro Messpunkt, etwa alle 4 m):
    lap, lap_number, kind, lap_time_ms, distance_m, time_ms, speed_kmh,
-   throttle (0–1), brake (0–1), gear, ers_j, ers_mode
+   throttle (0–1), brake (0–1), gear, rpm, steer (−1 links … +1 rechts),
+   g_lat, g_lon, ers_j, ers_mode, slip_front_pct, slip_rear_pct
    - "lap" ist die Bezeichnung der Runde, z. B. "L7", "26 Nov L3" (frühere
      Session) oder "ALO L5" (anderer Fahrer).
    - kind: timed = gültige gezeitete Runde; invalid/out/in/pit/partial sind nicht
@@ -131,8 +145,20 @@ Es gibt zwei Arten von CSV-Dateien:
      dieser Stelle.
    - ers_j = Batterieladung in Joule (voll = 4.000.000 J = 4 MJ).
    - ers_mode: 0 None, 1 Medium, 2 Hotlap, 3 Boost (Overtake).
+   - g_lat/g_lon: G-Kräfte; g_lon unter null heißt Bremsen.
+   - slip_*_pct: mittlerer Radschlupf pro Achse, nur bei meinen eigenen Runden
+     (leer bei anderen Fahrern und bei älteren Runden).
 
-2. Zeitfenster-Export (aus "Telemetry", Session-Zeit statt Distanz):
+2. Rundentabelle (aus "Lap analysis", eine Zeile pro Runde): group (yours /
+   earlier session / driver best), lap, kind, lap_time_ms, s1_ms, s2_ms, s3_ms,
+   Top- und Durchschnittsgeschwindigkeit, full_throttle_pct, braking_pct,
+   gear_changes, deployed_mj, harvested_mj, net_mj, boost_pct,
+   battery_start_mj, battery_end_mj, fuel_used_kg, tyre_wear_added_pct,
+   compound, tyre_age_laps. Für das große Bild: welche Sektoren Zeit kosten,
+   wie konstant ich bin, wie sich Energie und Reifenverschleiß über einen
+   Stint entwickeln.
+
+3. Zeitfenster-Export (aus "Telemetry", Session-Zeit statt Distanz):
    session_time_s, lap, lap_distance_m, speed_kmh, throttle, brake,
    steer (−1 links … +1 rechts), gear, rpm, ers_j, ers_mode,
    battery_flow_kw (+ = Deploy, − = Harvest), ice_kw, mguk_kw, g_lat, g_lon,
@@ -168,7 +194,7 @@ Wenn du Code ausführen kannst, rechne es aus. Schätze nicht, wo du rechnen kan
      Gas und Bremse, Schaltpunkte.
    - Energie: ers_mode und Batterie-Verlauf (Deploy oder Harvest), Boost-Einsatz,
      ob ich auf der Geraden "abgeregelt" werde, weil die Batterie leer ist.
-   - Traktion/Lock-up (nur Zeitfenster-Export): Schlupf und G-Kräfte.
+   - Traktion/Lock-up: Schlupf und G-Kräfte (Runden- oder Zeitfenster-Export).
    Wichtig: Zeit, die am Kurvenausgang verloren geht, zeigt sich oft erst auf
    der folgenden Geraden. Ordne den Verlust der Stelle zu, wo die Ursache liegt,
    nicht erst dort, wo das Delta wächst.
@@ -196,7 +222,7 @@ Wenn du Code ausführen kannst, rechne es aus. Schätze nicht, wo du rechnen kan
   Kurvennamen nur, wenn ich die Strecke nenne und du dir bei der Zuordnung
   sicher bist, sonst kennzeichne sie als Vermutung.
 - Zeitverluste mit 3 Nachkommastellen in Sekunden, Distanzen auf ~5 m genau.
-  Bei 30 Hz und 300 km/h liegen Messpunkte ~3 m auseinander, also keine
+  Runden-Exporte haben etwa alle 4 m einen Messpunkt, also keine
   Scheingenauigkeit.
 - Wenn eine Runde nicht vergleichbar ist (ungültig, Boxengasse, Flashback,
   private Telemetrie mit lauter Nullen), sag das und rechne nicht damit weiter.

@@ -68,6 +68,13 @@ export interface CarRow {
   ersDeployMode: number;
   fuelKg: number;
   tyreWearAvg: number;
+  steer: number;
+  rpm: number;
+  gLat: number;
+  gLon: number;
+  /** Mean slip ratio per axle in %; only for the player. */
+  slipFront: number | null;
+  slipRear: number | null;
 }
 
 export interface PlayerDetail {

@@ -7,7 +7,12 @@ namespace PitWall.Core.Laps;
 /// <param name="T">Lap time, ms.</param>
 /// <param name="Ers">ERS store, J.</param>
 /// <param name="Mode">ERS deploy mode (3 = Boost).</param>
-public readonly record struct Sample(double D, double T, double Speed, double Throttle, double Brake, int Gear, double Ers, int Mode);
+/// <param name="Steer">−1 full left … +1 full right.</param>
+/// <param name="SlipFront">Mean wheel slip ratio of the front axle in %; only the player's car has it.</param>
+/// <param name="SlipRear">Same for the rear axle.</param>
+public readonly record struct Sample(
+    double D, double T, double Speed, double Throttle, double Brake, int Gear, double Ers, int Mode,
+    double Steer = 0, int Rpm = 0, double GLat = 0, double GLon = 0, double? SlipFront = null, double? SlipRear = null);
 
 public enum MiniColour
 {

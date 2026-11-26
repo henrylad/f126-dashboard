@@ -102,7 +102,8 @@ internal sealed class LapArchive(MiniSectorTimer minis)
         }
         if (lastSample is null || car.LapDistance > lastSample.Value.D)
         {
-            r.Current.Add(new Sample(car.LapDistance, car.CurrentLapMs, car.Speed, car.Throttle, car.Brake, car.Gear, car.ErsStoreJ, car.ErsDeployMode));
+            r.Current.Add(new Sample(car.LapDistance, car.CurrentLapMs, car.Speed, car.Throttle, car.Brake, car.Gear, car.ErsStoreJ, car.ErsDeployMode,
+                car.Steer, car.Rpm, car.GLat, car.GLon, car.SlipFront, car.SlipRear));
         }
     }
 

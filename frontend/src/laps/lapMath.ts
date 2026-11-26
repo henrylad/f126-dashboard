@@ -9,7 +9,17 @@ export interface Sample {
   gear: number;
   ers: number; // ERS store, J
   mode: number; // ERS deploy mode (3 = Boost)
+  steer: number; // −1 full left … +1 full right
+  rpm: number;
+  gLat: number;
+  gLon: number;
+  /** Mean slip ratio per axle in %; only on your own laps. */
+  slipFront: number | null;
+  slipRear: number | null;
 }
+
+/** Sample channels that are always numbers, so they can be interpolated. */
+export type NumKey = { [K in keyof Sample]-?: Sample[K] extends number ? K : never }[keyof Sample];
 
 /** 0 = not counted (out/in-lap, pits, invalid), 1 = slower than PB, 2 = personal best, 3 = fastest overall */
 export type MiniColour = 0 | 1 | 2 | 3;
@@ -55,7 +65,7 @@ export function savedDate(l: Lap): string {
   return new Date(l.saved.savedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-export function interpolate(samples: Sample[], d: number, key: keyof Sample): number | null {
+export function interpolate(samples: Sample[], d: number, key: NumKey): number | null {
   if (!samples.length || d < samples[0].d || d > samples[samples.length - 1].d) return null;
   let lo = 0, hi = samples.length - 1;
   while (hi - lo > 1) {
