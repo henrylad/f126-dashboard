@@ -25,6 +25,8 @@ The UDP parser is written from scratch (`backend/src/PitWall.Telemetry`) for
   zones (where, how much, and why) and zooms every chart to them. Compared laps export as CSV.
 - A **lap library**: every clean timed lap is kept in a SQLite file (`data/pitwall.db`), so
   the next session on the same track can be measured against your all-time best.
+- An **analysis prompt** for Claude ([docs/analysis-prompt.md](docs/analysis-prompt.md)):
+  attach a CSV export and it tells you where on the lap you lose time and what to change.
 - A **simulator** that emits real 2026-format packets, so everything runs without the game,
   and **record / replay** of raw sessions.
 
