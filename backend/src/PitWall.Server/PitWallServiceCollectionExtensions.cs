@@ -3,6 +3,7 @@ using PitWall.Core.Live;
 using PitWall.Server.Configuration;
 using PitWall.Server.Ingestion;
 using PitWall.Server.Realtime;
+using PitWall.Server.Storage;
 
 namespace PitWall.Server;
 
@@ -16,6 +17,7 @@ public static class PitWallServiceCollectionExtensions
             .ValidateOnStart();
 
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<LapLibrary>();
         services.AddSingleton<TelemetryHub>();
         services.AddSingleton<IPacketSource>(sp => sp.GetRequiredService<IOptions<PitWallOptions>>().Value.Source switch
         {

@@ -21,6 +21,8 @@ export class LapView {
   /** Player's mini sectors on the current lap, and on the lap before. */
   minis: (MiniSector | null)[] = emptyMinis();
   lastMinis: (MiniSector | null)[] = emptyMinis();
+  /** Your fastest laps on this track from earlier sessions, fastest first. */
+  savedLaps: Lap[] = [];
   private bestLapId: number | null = null;
   private others = new Map<number, Lap>();
   /** Deltas are only meaningful on top of a history. */
@@ -45,6 +47,7 @@ export class LapView {
     this.minis = h.minis;
     this.lastMinis = h.lastMinis;
     this.current = h.current;
+    this.savedLaps = h.savedLaps ?? [];
     this.loaded = true;
   }
 

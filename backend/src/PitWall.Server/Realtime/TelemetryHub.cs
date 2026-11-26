@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using PitWall.Core.Laps;
 using PitWall.Core.Live;
 using PitWall.Server.Configuration;
+using PitWall.Server.Storage;
 
 namespace PitWall.Server.Realtime;
 
@@ -11,13 +12,15 @@ namespace PitWall.Server.Realtime;
 /// one lock. Messages are queued to clients under the same lock, which keeps each
 /// client's history and deltas in order.
 /// </summary>
-public sealed class TelemetryHub(IOptions<PitWallOptions> options, TimeProvider time, ILogger<TelemetryHub> logger)
+public sealed class TelemetryHub(IOptions<PitWallOptions> options, TimeProvider time, LapLibrary library, ILogger<TelemetryHub> logger)
 {
     private readonly Lock _gate = new();
     private readonly TelemetryAggregator _aggregator = new(options.Value.Source, time);
     private readonly LapTracker _laps = new();
     private readonly List<DashboardClient> _clients = [];
     private int _sentGeneration;
+    /// <summary>Your fastest laps on this track from earlier sessions.</summary>
+    private IReadOnlyList<Lap> _saved = [];
 
     public void Ingest(ReadOnlySpan<byte> packet)
     {
@@ -35,10 +38,14 @@ public sealed class TelemetryHub(IOptions<PitWallOptions> options, TimeProvider 
             {
                 // New session: everyone starts over from a fresh history.
                 _sentGeneration = _laps.Generation;
-                if (_clients.Count > 0) Broadcast(new HistoryMessage(_laps.History()));
+                _saved = snapshot.Session is { } s ? library.Fastest(s) : [];
+                if (_saved.Count > 0) logger.SavedLapsLoaded(_saved.Count, snapshot.Session!.TrackId);
+                if (_clients.Count > 0) Broadcast(new HistoryMessage(History()));
             }
             // Always taken, so pending changes don't pile up while nobody is watching.
             var delta = _laps.TakeDelta();
+            if (snapshot.Session is { } session)
+                foreach (var lap in delta.AddedLaps) library.Save(lap, session);
             if (_clients.Count > 0) Broadcast(new TickMessage(snapshot, delta));
         }
     }
@@ -49,7 +56,7 @@ public sealed class TelemetryHub(IOptions<PitWallOptions> options, TimeProvider 
         int open;
         lock (_gate)
         {
-            client.TrySend(ServerMessageJsonContext.Serialize(new HistoryMessage(_laps.History())));
+            client.TrySend(ServerMessageJsonContext.Serialize(new HistoryMessage(History())));
             _clients.Add(client);
             open = _clients.Count;
         }
@@ -67,6 +74,8 @@ public sealed class TelemetryHub(IOptions<PitWallOptions> options, TimeProvider 
         }
         logger.DashboardDisconnected(open);
     }
+
+    private LapHistory History() => _laps.History() with { SavedLaps = _saved };
 
     private void Broadcast(ServerMessage message)
     {

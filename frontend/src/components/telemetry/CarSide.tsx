@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import type { PlayerDetail } from '../../api/types.ts';
-import { gap, lapTime, sectorTime } from '../../lib/format.ts';
+import type { PlayerDetail, TyreSetsInfo } from '../../api/types.ts';
+import { delta as fmtDelta, gap, lapTime, sectorTime } from '../../lib/format.ts';
 import {
-  ACTUAL_TO_LABEL, DRIVER_STATUS, FIA_FLAGS, FUEL_MIX, PIT_STATES, RESULT_STATUS, SURFACES, TRACTION_CONTROL, compound,
+  ACTUAL_TO_LABEL, DRIVER_STATUS, FIA_FLAGS, FUEL_MIX, PIT_STATES, RESULT_STATUS, SESSION_TYPES, SURFACES, TRACTION_CONTROL, compound,
 } from '../../lib/meta.ts';
 import { tempColour } from '../Tyres.tsx';
 import { WHEEL_NAMES, WHEEL_ORDER } from './ChassisSection.tsx';
@@ -70,6 +70,10 @@ export function CarSide({ p }: { p: PlayerDetail }) {
             </tr>
           </tbody>
         </table>
+      </Block>
+
+      <Block id="tele-sets" title="Tyre sets" aside={p.tyreSets ? <>{n(p.tyreSets.sets.filter((t) => t.available).length)} available</> : undefined}>
+        {p.tyreSets ? <TyreSets info={p.tyreSets} /> : <p className="rail-note">Appears once the game sends your tyre sets (packet 12).</p>}
       </Block>
 
       <Block id="tele-car" title="Car">
@@ -179,5 +183,40 @@ function WheelRow({ label, values, fmt = (v) => v.toFixed(0), colour = false }: 
         );
       })}
     </tr>
+  );
+}
+
+/** Every set for the weekend: compound, wear, laps left, and pace against the fitted set. */
+function TyreSets({ info }: { info: TyreSetsInfo }) {
+  return (
+    <table className="wheel-table sets-table">
+      <thead>
+        <tr>
+          <th scope="col">Set</th>
+          <th scope="col" title="Wear, %">Wear</th>
+          <th scope="col" title="Laps left of the recommended life">Laps left</th>
+          <th scope="col" title="Lap time against the fitted set">Δ lap</th>
+          <th scope="col" title="Session the game recommends this set for">For</th>
+        </tr>
+      </thead>
+      <tbody>
+        {info.sets.map((t, i) => {
+          const c = compound(t.visualCompound);
+          return (
+            <tr key={i} className={`${t.fitted ? 'fitted' : ''} ${t.available ? '' : 'gone'}`}>
+              <th scope="row">
+                <span className="tyre" style={{ color: c.colour, width: 18, height: 18, fontSize: 9 }}>{c.label}</span>
+                <span className="dim"> {ACTUAL_TO_LABEL[t.actualCompound] ?? ''}</span>
+                {t.fitted && <span className="kind" style={{ marginLeft: 6 }}>Fitted</span>}
+              </th>
+              <td className="num">{t.wear}%</td>
+              <td className="num">{t.lifeSpan}<span className="dim"> / {t.usableLife}</span></td>
+              <td className={`num ${t.fitted ? 'dim' : t.lapDeltaMs < 0 ? 'gained' : t.lapDeltaMs > 0 ? 'lost' : ''}`}>{t.fitted ? '—' : t.lapDeltaMs === 0 ? '±0.000' : fmtDelta(t.lapDeltaMs)}</td>
+              <td>{t.available ? (SESSION_TYPES[t.recommendedSession] ?? '—').replace('Qualifying', 'Quali') : 'Used up'}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

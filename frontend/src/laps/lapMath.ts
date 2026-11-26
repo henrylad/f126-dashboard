@@ -45,6 +45,14 @@ export interface Lap {
   samples: Sample[];
   minis: (MiniSector | null)[];
   stats: LapStats;
+  /** Set on your laps from earlier sessions (carIdx is -1 then). */
+  saved?: { savedAt: string; sessionType: number } | null;
+}
+
+/** Short date of a lap from an earlier session, e.g. "24 Nov". */
+export function savedDate(l: Lap): string {
+  if (!l.saved) return '';
+  return new Date(l.saved.savedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
 export function interpolate(samples: Sample[], d: number, key: keyof Sample): number | null {

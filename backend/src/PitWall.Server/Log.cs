@@ -26,6 +26,15 @@ internal static partial class Log
     [LoggerMessage(Level = LogLevel.Warning, Message = "Dashboard too slow to keep up, closing its connection")]
     public static partial void DashboardTooSlow(this ILogger logger);
 
+    [LoggerMessage(Level = LogLevel.Information, Message = "Keeping your timed laps in {Path}")]
+    public static partial void LapLibraryOpen(this ILogger logger, string path);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Loaded {Count} laps from earlier sessions on track {TrackId}")]
+    public static partial void SavedLapsLoaded(this ILogger logger, int count, int trackId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Lap library failed; laps from this session won't be kept")]
+    public static partial void LapLibraryFailed(this ILogger logger, Exception exception);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "Broadcast tick failed")]
     public static partial void TickFailed(this ILogger logger, Exception exception);
 }

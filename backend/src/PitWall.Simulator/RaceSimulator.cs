@@ -122,6 +122,7 @@ public sealed class RaceSimulator
         Send(MotionEx(_cars[PlayerIdx]));
         if (_frame % 3 == 0) Send(Damage());
         if (_frame % 15 == 0) Send(Setups());
+        if (_frame % 30 == 7) Send(TyreSets(_cars[PlayerIdx]));
         if (_frame % 15 == 0) Send(Session());
         if (_frame % 30 == 0) Send(Participants());
         Send(History());
@@ -318,6 +319,42 @@ public sealed class RaceSimulator
         m.ChassisYaw = (float)Math.Atan2(_track.X[q] - _track.X[i], _track.Z[q] - _track.Z[i]);
         m.ChassisPitch = (float)(-lonG * 0.004);
         return m;
+    }
+
+    /// <summary>A race weekend allocation: 13 dry sets (soft, medium, hard) and 7 wet; the second medium is fitted.</summary>
+    private TyreSetsPacket TyreSets(SimCar c)
+    {
+        const int fitted = 5;
+        (byte Actual, byte Visual, byte Life, short Delta)[] kinds =
+        [
+            (16, 16, 18, -650), (16, 16, 18, -650), (16, 16, 18, -650), (16, 16, 18, -650),
+            (17, 17, 28, 0), (17, 17, 28, 0), (17, 17, 28, 0),
+            (18, 18, 38, 550), (18, 18, 38, 550),
+            (16, 16, 18, -650), (16, 16, 18, -650), (17, 17, 28, 0), (18, 18, 38, 550),
+            (7, 7, 30, 4200), (7, 7, 30, 4200), (7, 7, 30, 4200), (7, 7, 30, 4200),
+            (8, 8, 35, 7800), (8, 8, 35, 7800), (8, 8, 35, 7800),
+        ];
+        var wear = (byte)Math.Round(c.Wear.Average());
+        var packet = new TyreSetsPacket { Header = Header(PacketId.TyreSets), CarIdx = PlayerIdx, FittedIdx = fitted };
+        for (var k = 0; k < kinds.Length; k++)
+        {
+            var (actual, visual, life, delta) = kinds[k];
+            // Two softs were used in qualifying.
+            var used = k is 0 or 1 ? (byte)24 : k == fitted ? wear : (byte)0;
+            packet.Sets[k] = new TyreSetData
+            {
+                ActualTyreCompound = actual,
+                VisualTyreCompound = visual,
+                Wear = used,
+                Available = true,
+                RecommendedSession = (byte)(visual == 16 && k < 4 ? 5 : 15),
+                UsableLife = life,
+                LifeSpan = (byte)Math.Max(0, Math.Round(life * (1 - used / 100.0))),
+                LapDeltaTime = k == fitted ? (short)0 : (short)(delta - (k is 0 or 1 ? -300 : 0)),
+                Fitted = k == fitted,
+            };
+        }
+        return packet;
     }
 
     private CarSetupsPacket Setups()

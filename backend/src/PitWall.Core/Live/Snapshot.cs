@@ -295,7 +295,19 @@ public sealed record PlayerDetail
     public ChassisInfo? Chassis { get; init; }
     /// <summary>Null until the game sends car setups.</summary>
     public SetupInfo? Setup { get; init; }
+    /// <summary>Null until the game sends the player's tyre sets.</summary>
+    public TyreSetsInfo? TyreSets { get; init; }
 }
+
+/// <summary>The player's tyre sets for the weekend (packet 12).</summary>
+public sealed record TyreSetsInfo(int FittedIdx, IReadOnlyList<TyreSetInfo> Sets);
+
+/// <param name="LapDeltaMs">Lap time difference to the fitted set.</param>
+/// <param name="LifeSpan">Laps left in the set.</param>
+/// <param name="UsableLife">Recommended maximum laps for the compound.</param>
+public sealed record TyreSetInfo(
+    int ActualCompound, int VisualCompound, int Wear, bool Available, int RecommendedSession,
+    int LifeSpan, int UsableLife, int LapDeltaMs, bool Fitted);
 
 /// <param name="T">Session time in seconds.</param>
 public sealed record FeedEvent(double T, string Code, string Text);

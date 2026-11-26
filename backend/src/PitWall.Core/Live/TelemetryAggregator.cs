@@ -32,6 +32,7 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
     private CarTelemetry2Packet? _telemetry2;
     private MotionExPacket? _motionEx;
     private CarSetupsPacket? _setups;
+    private TyreSetsPacket? _tyreSets;
     private long? _lastPacketAt;
     private int? _wrongFormat;
 
@@ -66,6 +67,7 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
             case CarTelemetry2Packet p: _telemetry2 = p; break;
             case MotionExPacket p: _motionEx = p; break;
             case CarSetupsPacket p: _setups = p; break;
+            case TyreSetsPacket p when p.CarIdx == header.PlayerCarIndex: _tyreSets = p; break;
             case SessionHistoryPacket p: OnSessionHistory(p); break;
             case EventPacket p: _feed.Add(header.SessionTime, p, DriverName); break;
         }
@@ -106,6 +108,7 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
         _telemetry2 = null;
         _motionEx = null;
         _setups = null;
+        _tyreSets = null;
         Array.Clear(_bestLapMs);
         _feed.Clear();
     }
@@ -366,7 +369,21 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
             },
             Chassis = _motionEx is { } mx ? BuildChassis(mx) : null,
             Setup = _setups is { } su ? BuildSetup(su.Cars[i], su.NextFrontWingValue) : null,
+            TyreSets = _tyreSets is { } ts ? BuildTyreSets(ts) : null,
         };
+    }
+
+    private static TyreSetsInfo BuildTyreSets(in TyreSetsPacket p)
+    {
+        var sets = new List<TyreSetInfo>(TyreSetsPacket.MaxSets);
+        foreach (var s in p.Sets)
+        {
+            // Unused slots are all zero.
+            if (s.VisualTyreCompound == 0 && s.ActualTyreCompound == 0) continue;
+            sets.Add(new TyreSetInfo(s.ActualTyreCompound, s.VisualTyreCompound, s.Wear, s.Available,
+                s.RecommendedSession, s.LifeSpan, s.UsableLife, s.LapDeltaTime, s.Fitted));
+        }
+        return new TyreSetsInfo(p.FittedIdx, sets);
     }
 
     private static ChassisInfo BuildChassis(in MotionExPacket m) => new()

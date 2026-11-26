@@ -53,6 +53,9 @@ public class SimulatedRaceTests
         Assert.Equal(1, player.Race.Position);
         Assert.Equal(8_500_000, player.ErsHarvestLimitLapJ);
         Assert.Equal(110, player.FuelCapacityKg);
+        Assert.NotNull(player.TyreSets);
+        Assert.Equal(20, player.TyreSets.Sets.Count);
+        Assert.Single(player.TyreSets.Sets, s => s.Fitted);
     }
 
     [Fact]

@@ -674,3 +674,8 @@ body {
   .tele-side { grid-template-columns: minmax(0, 1fr); }
   .tele-side .rail-block { border-right: 0; }
 }
+
+.sets-table tbody tr.fitted { background: rgba(121, 192, 255, 0.06); }
+.sets-table tbody tr.gone { opacity: 0.45; }
+.sets-table th[scope='row'] { display: flex; align-items: center; gap: 2px; color: var(--text); }
+.sets-table thead th:first-child { text-align: left; }

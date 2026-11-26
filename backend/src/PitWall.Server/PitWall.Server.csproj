@@ -4,6 +4,9 @@
     <ProjectReference Include="..\PitWall.Simulator\PitWall.Simulator.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="PitWall.Server.Tests" />
   </ItemGroup>
 </Project>

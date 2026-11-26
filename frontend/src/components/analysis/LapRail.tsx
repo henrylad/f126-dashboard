@@ -1,4 +1,4 @@
-import type { Lap } from '../../laps/lapMath.ts';
+import { savedDate, type Lap } from '../../laps/lapMath.ts';
 import { hasTelemetry } from '../../laps/lossZones.ts';
 import { code, delta as fmtDelta, lapTime } from '../../lib/format.ts';
 import { LAP_COLOURS } from '../../lib/chart.ts';
@@ -16,6 +16,8 @@ interface Owner { name: string; colour: string }
 interface Props {
   laps: Lap[];
   driverLaps: Lap[];
+  /** Your fastest laps here from earlier sessions. */
+  savedLaps: Lap[];
   filter: Filter;
   onFilter: (f: Filter) => void;
   ownerOf: (l: Lap) => Owner;
@@ -25,12 +27,12 @@ interface Props {
   selected: { id: number; slot: number }[];
   onToggle: (id: number) => void;
   onRef: (id: number) => void;
-  presets: Record<'bestVsLast' | 'meVsFastest' | 'meVsTop3' | 'clear', (() => void) | null>;
+  presets: Record<'bestVsLast' | 'meVsFastest' | 'meVsSaved' | 'meVsTop3' | 'clear', (() => void) | null>;
   activePreset: string | null;
   slotColour: (id: number, slot: number) => string;
 }
 
-export function LapRail({ laps, driverLaps, filter, onFilter, ownerOf, labelOf, bests, refLap, selected, onToggle, onRef, presets, activePreset, slotColour }: Props) {
+export function LapRail({ laps, driverLaps, savedLaps, filter, onFilter, ownerOf, labelOf, bests, refLap, selected, onToggle, onRef, presets, activePreset, slotColour }: Props) {
   const timed = laps.filter((l) => l.kind === 'timed');
   const shown = filter === 'all' ? laps : filter === 'valid' ? timed : [...timed].sort((a, b) => a.timeMs - b.timeMs).slice(0, 5);
   const full = selected.length >= LAP_COLOURS.length;
@@ -45,7 +47,8 @@ export function LapRail({ laps, driverLaps, filter, onFilter, ownerOf, labelOf, 
     const best = valid && l.timeMs === bests.time;
     const yourBest = !driver && valid && l.timeMs === bests.yourTime;
     const owner = driver ? ownerOf(l) : null;
-    const name = driver ? `${owner!.name} lap ${l.lap}` : `lap ${l.lap}`;
+    const date = savedDate(l);
+    const name = driver ? `${owner!.name} lap ${l.lap}` : date ? `lap ${l.lap} from ${date}` : `lap ${l.lap}`;
     const disabled = !telemetry || (!colour && full);
     return (
       <li key={l.id} className={`rail-row${colour ? ' on' : ''}${valid ? '' : ' untimed'}`}>
@@ -55,8 +58,8 @@ export function LapRail({ laps, driverLaps, filter, onFilter, ownerOf, labelOf, 
             onChange={() => onToggle(l.id)} aria-label={`Compare ${name}`} />
           <span className="rail-lap">
             {owner && <i className="team-dot" style={{ background: owner.colour }} aria-hidden />}
-            <b className="num">{driver ? code(owner!.name) : `L${l.lap}`}</b>
-            {driver && <span className="num dim">L{l.lap}</span>}
+            <b className="num">{driver ? code(owner!.name) : date || `L${l.lap}`}</b>
+            {(driver || date) && <span className="num dim">L{l.lap}</span>}
             {KIND_LABEL[l.kind] && <span className="kind">{KIND_LABEL[l.kind]}</span>}
             {!telemetry && <span className="kind">Private</span>}
           </span>
@@ -88,7 +91,7 @@ export function LapRail({ laps, driverLaps, filter, onFilter, ownerOf, labelOf, 
           </span>
         </div>
         <div className="presets">
-          {([['bestVsLast', 'Best vs last 3'], ['meVsFastest', 'Me vs fastest'], ['meVsTop3', 'Me vs top 3']] as const).map(([key, label]) => (
+          {([['bestVsLast', 'Best vs last 3'], ['meVsFastest', 'Me vs fastest'], ['meVsTop3', 'Me vs top 3'], ['meVsSaved', 'Me vs all-time best']] as const).filter(([key]) => key !== 'meVsSaved' || savedLaps.length > 0).map(([key, label]) => (
             <button key={key} className={activePreset === key ? 'on' : ''} aria-pressed={activePreset === key}
               disabled={!presets[key]} onClick={presets[key] ?? undefined}>{label}</button>
           ))}
@@ -108,6 +111,16 @@ export function LapRail({ laps, driverLaps, filter, onFilter, ownerOf, labelOf, 
         </div>
         {shown.length ? <ul className="rail-list">{shown.map((l) => row(l, false))}</ul> : <p className="rail-note">No valid laps yet. Out-laps and invalid laps show under All.</p>}
       </div>
+
+      {savedLaps.length > 0 && (
+        <div className="rail-block">
+          <div className="rail-head">
+            <h2>Earlier sessions <span className="num dim">{savedLaps.length}</span></h2>
+            <span className="rail-count">Your fastest here</span>
+          </div>
+          <ul className="rail-list">{savedLaps.map((l) => row(l, false))}</ul>
+        </div>
+      )}
 
       <div className="rail-block">
         <div className="rail-head">

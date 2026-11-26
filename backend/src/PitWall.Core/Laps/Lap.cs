@@ -66,4 +66,9 @@ public sealed record Lap
     public required IReadOnlyList<Sample> Samples { get; init; }
     public required IReadOnlyList<MiniSector?> Minis { get; init; }
     public required LapStats Stats { get; init; }
+    /// <summary>Set on laps loaded from an earlier session; null for this session's laps.</summary>
+    public SavedLapInfo? Saved { get; init; }
 }
+
+/// <summary>Where a lap from an earlier session came from.</summary>
+public sealed record SavedLapInfo(DateTimeOffset SavedAt, int SessionType);

@@ -22,6 +22,17 @@ public sealed class PitWallOptions : IValidatableObject
     /// <summary>When set, every received packet is also saved here.</summary>
     public string? RecordPath { get; set; }
 
+    /// <summary>SQLite file that keeps your timed laps across sessions.</summary>
+    public string DataPath { get; set; } = "data/pitwall.db";
+
+    /// <summary>
+    /// Whether to keep your timed laps. Defaults to on for the game and replays, and
+    /// off for the simulator so its laps never mix with real ones.
+    /// </summary>
+    public bool? SaveLaps { get; set; }
+
+    public bool SavesLaps => SaveLaps ?? Source != TelemetrySource.Sim;
+
     /// <summary>How often dashboards get a snapshot.</summary>
     [Range(1, 120)]
     public int BroadcastHz { get; set; } = 30;

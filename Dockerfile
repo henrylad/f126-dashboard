@@ -17,7 +17,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=backend /out ./
 COPY --from=frontend /src/dist ./wwwroot
-RUN mkdir -p recordings && chown app:app recordings
+RUN mkdir -p recordings data && chown app:app recordings data
 USER app
 
 # 5173 = dashboard (HTTP + WebSocket), 20777/udp = F1 telemetry

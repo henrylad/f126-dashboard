@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ERS_MAX_J } from '../../api/types.ts';
 import { C, beginFrame, clipped, drawPanelLabel, layoutPanels, observeSize, type Frame, type Panel } from '../../lib/chart.ts';
 import { ENERGY, ERS_MODES } from '../../lib/meta.ts';
+import { interpolate, type Sample } from '../../laps/lapMath.ts';
 import type { TelemetryHistory, TSample } from './history.ts';
 
 const SANS = '"Geist Variable", system-ui, sans-serif';
@@ -13,7 +14,8 @@ const HARVEST = ENERGY[0].colour;
 const DEPLOY = [ENERGY[1].colour, ENERGY[1].colour, ENERGY[2].colour, ENERGY[3].colour];
 
 type Get = (s: TSample) => number | null;
-interface Line { get: Get; colour: string; label: string; fill?: boolean; step?: boolean; width?: number }
+/** `ref` names the best-lap channel drawn dashed under this line at the same lap distance. */
+interface Line { get: Get; colour: string; label: string; fill?: boolean; step?: boolean; width?: number; ref?: keyof Sample }
 
 export interface ChannelDef {
   key: string;
@@ -49,20 +51,20 @@ const pct = (v: number) => `${Math.round(v * 100)}`;
 
 export const CHANNEL_DEFS: ChannelDef[] = [
   { key: 'speed', label: 'Speed km/h', h: 92, range: [0, 360], ticks: () => [0, 100, 200, 300], fmt: String,
-    lines: [{ get: (s) => s.speed, colour: C.current, label: 'Speed' }] },
+    lines: [{ get: (s) => s.speed, colour: C.current, label: 'Speed', ref: 'speed' }] },
   { key: 'pedals', label: 'Throttle / brake %', h: 64, range: [0, 1], ticks: ends, fmt: pct,
     lines: [
-      { get: (s) => s.throttle, colour: C.throttle, label: 'Throttle', fill: true },
-      { get: (s) => s.brake, colour: C.brake, label: 'Brake', fill: true },
+      { get: (s) => s.throttle, colour: C.throttle, label: 'Throttle', fill: true, ref: 'throttle' },
+      { get: (s) => s.brake, colour: C.brake, label: 'Brake', fill: true, ref: 'brake' },
     ] },
   { key: 'steer', label: 'Steering % · left below zero', h: 56, range: [-1, 1], ticks: withZero, fmt: pct,
     lines: [{ get: (s) => s.steer, colour: INK, label: 'Steering' }] },
   { key: 'gear', label: 'Gear', h: 48, range: [0, 8], ticks: () => [1, 8], fmt: String,
-    lines: [{ get: (s) => s.gear, colour: INK, label: 'Gear', step: true }] },
+    lines: [{ get: (s) => s.gear, colour: INK, label: 'Gear', step: true, ref: 'gear' }] },
   { key: 'rpm', label: 'RPM', h: 56, range: upTo(10_000, (s) => s.rpm), ticks: ends, fmt: (v) => (v ? `${Math.round(v / 1000)}k` : '0'),
     lines: [{ get: (s) => s.rpm, colour: INK, label: 'RPM', width: 1.5 }] },
   { key: 'battery', label: 'Battery (ERS store) %', h: 60, range: [0, ERS_MAX_J], ticks: (lo, hi) => [lo, hi / 2, hi], fmt: (v) => `${Math.round((v / ERS_MAX_J) * 100)}`,
-    lines: [{ get: (s) => s.ers, colour: C.battery, label: 'Battery', fill: true }] },
+    lines: [{ get: (s) => s.ers, colour: C.battery, label: 'Battery', fill: true, ref: 'ers' }] },
   { key: 'flow', label: 'Battery flow kW · deploy above zero, harvest below', h: 84, range: sym(100, (s) => s.flowKw), ticks: withZero, fmt: String, flow: true,
     lines: [{ get: (s) => s.flowKw, colour: INK, label: 'Flow' }] },
   { key: 'power', label: 'ICE / MGU-K power kW', h: 64, range: upTo(100, (s) => s.iceKw, (s) => s.mgukKw), ticks: ends, fmt: String,
@@ -120,12 +122,19 @@ function thin(vis: TSample[], plotW: number): TSample[] {
   return out;
 }
 
-export function RollingChart({ history, windowS, end, channels }: {
+/** The best lap's value where the car was at this sample, or null off the lap. */
+function refAt(ref: Sample[] | null, s: TSample, key: keyof Sample): number | null {
+  return ref && s.d >= 0 ? interpolate(ref, s.d, key) : null;
+}
+
+export function RollingChart({ history, windowS, end, channels, refLap }: {
   history: TelemetryHistory;
   windowS: number;
   /** Session time at the right edge. */
   end: number;
   channels: ChannelDef[];
+  /** Best-lap samples to draw dashed under the live lines, matched by lap distance. */
+  refLap: Sample[] | null;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -170,6 +179,25 @@ export function RollingChart({ history, windowS, end, channels }: {
             g.fillRect(x0, Math.min(y, zero), Math.max(1, x1 - x0 + 0.5), Math.abs(zero - y));
           }
           return;
+        }
+        // Best lap first, so the live line sits on top.
+        for (const line of ch.lines) {
+          if (!line.ref || !refLap) continue;
+          const path = new Path2D();
+          let started = false, prevY = 0;
+          for (const s of vis) {
+            const v = refAt(refLap, s, line.ref);
+            if (v === null) { started = false; continue; }
+            const x = xOf(s.t), y = yOf(v);
+            if (!started) { path.moveTo(x, y); started = true; }
+            else { if (line.step) path.lineTo(x, prevY); path.lineTo(x, y); }
+            prevY = y;
+          }
+          g.setLineDash([6, 4]);
+          g.strokeStyle = C.ref;
+          g.lineWidth = 1.5;
+          g.stroke(path);
+          g.setLineDash([]);
         }
         for (const line of ch.lines) {
           const path = new Path2D();
@@ -256,9 +284,11 @@ export function RollingChart({ history, windowS, end, channels }: {
                 </span>]
               : ch.lines.map((l) => {
                   const v = l.get(at);
+                  const r = l.ref ? refAt(refLap, at, l.ref) : null;
                   return (
                     <span key={`${ch.key}-${l.label}`} className="readout-lap">
                       <i className="sw" style={{ background: l.colour }} />{l.label} <span className="num">{v === null ? '—' : fmtValue(ch.key, v)}</span>
+                      {r !== null && <small>best <span className="num">{fmtValue(ch.key, r)}</span></small>}
                     </span>
                   );
                 }))}

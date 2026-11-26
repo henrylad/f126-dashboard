@@ -21,6 +21,12 @@ public class CommandLineTests
     }
 
     [Fact]
+    public void Lap_saving_flags_set_the_data_options() =>
+        Assert.Equal(
+            ["--PitWall:DataPath=laps.db", "--PitWall:SaveLaps=true", "--PitWall:SaveLaps=false"],
+            CommandLine.Expand(["--data", "laps.db", "--save-laps", "--no-save-laps"]));
+
+    [Fact]
     public void Passes_other_arguments_through() =>
         Assert.Equal(["--environment", "Production"], CommandLine.Expand(["--environment", "Production"]));
 

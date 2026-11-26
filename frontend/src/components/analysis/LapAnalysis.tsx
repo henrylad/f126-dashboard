@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Snapshot } from '../../api/types.ts';
 import type { LapView } from '../../laps/lapView.ts';
-import { theoreticalBest, type Lap } from '../../laps/lapMath.ts';
+import { savedDate, theoreticalBest, type Lap } from '../../laps/lapMath.ts';
 import { hasTelemetry, verdict as findVerdict } from '../../laps/lossZones.ts';
 import { code } from '../../lib/format.ts';
 import { C, LAP_COLOURS, type Range } from '../../lib/chart.ts';
@@ -61,7 +61,8 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView })
   const len = session.trackLength || 1;
   const laps = store.laps;
   const driverLaps = store.driverBests();
-  const everyLap = [...laps, ...driverLaps];
+  const savedLaps = store.savedLaps;
+  const everyLap = [...laps, ...driverLaps, ...savedLaps];
   const timed = laps.filter((l) => l.kind === 'timed');
   const fastest = timed.length ? [...timed].sort(byTime)[0] : null;
 
@@ -84,10 +85,11 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView })
   }, [touched, fastest?.id, latestTimed]);
 
   const ownerOf = (l: Lap) => {
+    if (l.saved) return { name: 'You', colour: '#808a96' };
     const car = snap.cars.find((c) => c.idx === l.carIdx);
     return { name: car?.name ?? `Car ${l.carIdx + 1}`, colour: car ? team(car.teamId).colour : '#808a96' };
   };
-  const labelOf = (l: Lap) => (l.carIdx === store.playerIdx ? `L${l.lap}` : `${code(ownerOf(l).name)} L${l.lap}`);
+  const labelOf = (l: Lap) => (l.saved ? `${savedDate(l)} L${l.lap}` : l.carIdx === store.playerIdx ? `L${l.lap}` : `${code(ownerOf(l).name)} L${l.lap}`);
 
   const select = (ids: number[], ref?: number, name: string | null = null) => {
     setTouched(true);
@@ -147,8 +149,9 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView })
   const bests = sessionBests(laps, driverLaps);
   const theo = theoreticalBest(laps);
   const fastestDriver = driverLaps.find((l) => l.kind === 'timed') ?? null;
+  const allTimeBest = savedLaps.find(usable) ?? null;
 
-  if (!laps.length && !driverLaps.length) {
+  if (!laps.length && !driverLaps.length && !savedLaps.length) {
     return (
       <div className="empty">
         <h1>No laps yet</h1>
@@ -161,12 +164,13 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView })
   return (
     <div className="analysis">
       <LapRail
-        laps={laps} driverLaps={driverLaps} filter={filter} onFilter={setFilter}
+        laps={laps} driverLaps={driverLaps} savedLaps={savedLaps} filter={filter} onFilter={setFilter}
         ownerOf={ownerOf} labelOf={labelOf} bests={bests} refLap={refLap}
         selected={selected} onToggle={toggle} onRef={setRef} activePreset={preset} slotColour={(id, slot) => colourOfLap(id, slot)}
         presets={{
           bestVsLast: fastest && laps.length > 1 ? () => select([fastest.id, ...laps.filter((l) => l.kind === 'timed' && l.id !== fastest.id).slice(-3).map((l) => l.id)], fastest.id, 'bestVsLast') : null,
           meVsFastest: fastest && fastestDriver && usable(fastestDriver) ? () => select([fastest.id, fastestDriver.id], fastestDriver.id, 'meVsFastest') : null,
+          meVsSaved: fastest && allTimeBest ? () => select([fastest.id, allTimeBest.id], allTimeBest.id, 'meVsSaved') : null,
           meVsTop3: fastest && driverLaps.some(usable) ? () => { const top = driverLaps.filter(usable).slice(0, 3); select([fastest.id, ...top.map((l) => l.id)], top[0].id, 'meVsTop3'); } : null,
           clear: selected.length ? () => select([]) : null,
         }}
@@ -199,8 +203,8 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView })
         </section>
 
         <section className="a-section" aria-labelledby="h-data">
-          <LapTable headingId="h-data" laps={laps} driverLaps={driverLaps} ownerOf={ownerOf} bests={bests}
-            refLap={refLap} colourOf={(id) => { const s = selected.find((x) => x.id === id); return s ? colourOfLap(id, s.slot) : null; }} />
+          <LapTable headingId="h-data" laps={laps} driverLaps={driverLaps} savedLaps={savedLaps} ownerOf={ownerOf} bests={bests}
+            refLap={refLap} compared={compared} colourOf={(id) => { const s = selected.find((x) => x.id === id); return s ? colourOfLap(id, s.slot) : null; }} />
         </section>
       </div>
     </div>

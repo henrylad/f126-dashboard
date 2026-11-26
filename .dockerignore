@@ -4,6 +4,7 @@
 **/obj
 .git
 recordings
+data
 *.f1rec
 .claude
 .agents

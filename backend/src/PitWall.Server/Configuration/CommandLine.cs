@@ -11,6 +11,9 @@ namespace PitWall.Server.Configuration;
 ///   --record &lt;file&gt;       PitWall:RecordPath=&lt;file&gt;
 ///   --udp-port &lt;n&gt;        PitWall:UdpPort=&lt;n&gt;
 ///   --port &lt;n&gt;            urls=http://0.0.0.0:&lt;n&gt;
+///   --data &lt;file&gt;         PitWall:DataPath=&lt;file&gt;
+///   --save-laps           PitWall:SaveLaps=true  (the simulator doesn't save by default)
+///   --no-save-laps        PitWall:SaveLaps=false
 /// </code>
 /// </remarks>
 public static class CommandLine
@@ -36,6 +39,15 @@ public static class CommandLine
                     break;
                 case "--udp-port":
                     result.Add($"--{PitWallOptions.Section}:UdpPort={Value()}");
+                    break;
+                case "--data":
+                    result.Add($"--{PitWallOptions.Section}:DataPath={Value()}");
+                    break;
+                case "--save-laps":
+                    result.Add($"--{PitWallOptions.Section}:SaveLaps=true");
+                    break;
+                case "--no-save-laps":
+                    result.Add($"--{PitWallOptions.Section}:SaveLaps=false");
                     break;
                 case "--port":
                     result.Add($"--urls=http://0.0.0.0:{Value()}");

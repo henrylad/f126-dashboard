@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { Lap } from '../../laps/lapMath.ts';
 import { compound } from '../../lib/meta.ts';
+import { savedDate } from '../../laps/lapMath.ts';
+import { download, lapsCsv, stamp } from '../../lib/csv.ts';
 import { code, delta as fmtDelta, lapTime, sectorTime } from '../../lib/format.ts';
 import type { Bests } from './LapAnalysis.tsx';
 
@@ -51,10 +53,13 @@ interface Props {
   headingId: string;
   laps: Lap[];
   driverLaps: Lap[];
+  savedLaps: Lap[];
   ownerOf: (l: Lap) => { name: string; colour: string };
   bests: Bests;
   refLap: Lap | null;
   colourOf: (id: number) => string | null;
+  /** Laps being compared, with their chart labels, for the CSV export. */
+  compared: { lap: Lap; label: string }[];
 }
 
 /** Session-best mark: a drawn dot, with its meaning for screen readers. */
@@ -68,7 +73,7 @@ const Arrow = ({ dir }: { dir: 1 | -1 }) => (
   </svg>
 );
 
-export function LapTable({ headingId, laps, driverLaps, ownerOf, bests, refLap, colourOf }: Props) {
+export function LapTable({ headingId, laps, driverLaps, savedLaps, ownerOf, bests, refLap, colourOf, compared }: Props) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'order', dir: 1 });
   const [all, setAll] = useState(false);
   const cols = all ? [...CORE, ...MORE] : CORE;
@@ -108,7 +113,8 @@ export function LapTable({ headingId, laps, driverLaps, ownerOf, bests, refLap, 
         <th scope="row" className="left">
           <span className="lap-name">
             <i className={`sw${colour ? '' : ' none'}`} style={colour ? { background: colour } : undefined} aria-hidden />
-            {owner ? <><i className="team-dot" style={{ background: owner.colour }} aria-hidden /><b>{code(owner.name)}</b> <span className="dim">L{l.lap}</span></> : <b>L{l.lap}</b>}
+            {owner ? <><i className="team-dot" style={{ background: owner.colour }} aria-hidden /><b>{code(owner.name)}</b> <span className="dim">L{l.lap}</span></>
+              : l.saved ? <><b>{savedDate(l)}</b> <span className="dim">L{l.lap}</span></> : <b>L{l.lap}</b>}
             {KIND_LABEL[l.kind] && <span className="kind">{KIND_LABEL[l.kind]}</span>}
             {refLap?.id === l.id && <span className="kind ref">Ref</span>}
           </span>
@@ -153,6 +159,10 @@ export function LapTable({ headingId, laps, driverLaps, ownerOf, bests, refLap, 
         <h2 id={headingId}>Lap data</h2>
         <span className="aside"><Best /> session best across all drivers · gaps to the reference</span>
         <span className="head-tools">
+          <button className="btn" disabled={!compared.length} onClick={() => download(`pitwall-laps-${stamp()}.csv`, lapsCsv(compared))}
+            title={compared.length ? 'Download every sample of the compared laps as CSV' : 'Pick laps to compare first'}>
+            Export compared (CSV)
+          </button>
           <button className="btn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? 'Fewer columns' : 'All columns'}</button>
         </span>
       </div>
@@ -163,6 +173,12 @@ export function LapTable({ headingId, laps, driverLaps, ownerOf, bests, refLap, 
             <tr className="group"><th scope="rowgroup" colSpan={cols.length + (all ? 2 : 1)}>Your laps</th></tr>
             {sorted(laps).map((l) => row(l, false))}
           </tbody>
+          {savedLaps.length > 0 && (
+            <tbody>
+              <tr className="group"><th scope="rowgroup" colSpan={cols.length + (all ? 2 : 1)}>Earlier sessions</th></tr>
+              {sorted(savedLaps).map((l) => row(l, false))}
+            </tbody>
+          )}
           {driverLaps.length > 0 && (
             <tbody>
               <tr className="group"><th scope="rowgroup" colSpan={cols.length + (all ? 2 : 1)}>Drivers' fastest laps</th></tr>

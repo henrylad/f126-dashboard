@@ -12,6 +12,7 @@ services:
       - "${PITWALL_UDP_PORT:-20777}:20777/udp" # F1 telemetry from the game
     volumes:
       - ./recordings:/app/recordings:Z
+      - ./data:/app/data:Z                    # your laps, kept across sessions
     networks:
       - pitwall
 

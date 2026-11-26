@@ -24,6 +24,7 @@ public class PacketCodecTests
         { nameof(CarTelemetry2Packet), PacketCodec.SizeOf<CarTelemetry2Packet>(), 269 },
         { nameof(MotionExPacket), PacketCodec.SizeOf<MotionExPacket>(), 273 },
         { nameof(CarSetupsPacket), PacketCodec.SizeOf<CarSetupsPacket>(), 1233 },
+        { nameof(TyreSetsPacket), PacketCodec.SizeOf<TyreSetsPacket>(), 231 },
     };
 
     [Theory]
@@ -111,6 +112,26 @@ public class PacketCodecTests
     }
 
     [Fact]
+    public void Reads_tyre_sets_at_the_published_offsets()
+    {
+        var bytes = PacketCodec.Encode(new TyreSetsPacket { Header = Header(PacketId.TyreSets) });
+        var set3 = PacketCodec.HeaderSize + 1 + 3 * 10;
+        bytes[PacketCodec.HeaderSize] = 5;            // car index
+        bytes[set3 + 2] = 37;                         // wear
+        BitConverter.TryWriteBytes(bytes.AsSpan(set3 + 7), (short)-450); // lap delta
+        bytes[set3 + 9] = 1;                          // fitted
+        bytes[^1] = 3;                                // fitted index
+
+        var got = Assert.IsType<TyreSetsPacket>(PacketCodec.Decode(bytes).Packet);
+
+        Assert.Equal(5, got.CarIdx);
+        Assert.Equal(37, got.Sets[3].Wear);
+        Assert.Equal(-450, got.Sets[3].LapDeltaTime);
+        Assert.True(got.Sets[3].Fitted);
+        Assert.Equal(3, got.FittedIdx);
+    }
+
+    [Fact]
     public void Decodes_participant_names()
     {
         var sent = new ParticipantsPacket { Header = Header(PacketId.Participants), NumActiveCars = 22 };
@@ -168,7 +189,7 @@ public class PacketCodecTests
     [Fact]
     public void Reports_packets_without_a_layout_as_unhandled()
     {
-        var header = Header(PacketId.TyreSets);
+        var header = Header(PacketId.LobbyInfo);
         var bytes = MemoryMarshal.AsBytes(new ReadOnlySpan<PacketHeader>(in header)).ToArray();
 
         Assert.Equal(DecodeStatus.Unhandled, PacketCodec.Decode(bytes).Status);

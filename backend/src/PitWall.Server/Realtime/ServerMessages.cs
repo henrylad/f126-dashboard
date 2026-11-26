@@ -20,6 +20,7 @@ public sealed record TickMessage(Snapshot Snapshot, LapDelta Laps) : ServerMessa
 
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals)]
 [JsonSerializable(typeof(ServerMessage))]
+[JsonSerializable(typeof(Lap))]
 internal sealed partial class ServerMessageJsonContext : JsonSerializerContext
 {
     public static byte[] Serialize(ServerMessage message) => JsonSerializer.SerializeToUtf8Bytes(message, Default.ServerMessage);

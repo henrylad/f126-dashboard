@@ -18,6 +18,8 @@ public sealed record LapHistory
     public required IReadOnlyList<MiniSector?> LastMinis { get; init; }
     /// <summary>The player's current lap so far.</summary>
     public required IReadOnlyList<Sample> Current { get; init; }
+    /// <summary>Your fastest laps on this track from earlier sessions, fastest first.</summary>
+    public IReadOnlyList<Lap> SavedLaps { get; init; } = [];
 }
 
 /// <summary>Samples of the player's current lap from index <see cref="From"/> on; replaces anything the client has past it.</summary>

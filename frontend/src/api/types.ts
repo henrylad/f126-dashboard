@@ -153,6 +153,29 @@ export interface PlayerDetail {
   chassis: ChassisInfo | null;
   /** Car setup; null until the game sends it. */
   setup: SetupInfo | null;
+  /** The weekend's tyre sets; null until the game sends them. */
+  tyreSets: TyreSetsInfo | null;
+}
+
+export interface TyreSetsInfo {
+  fittedIdx: number;
+  sets: TyreSet[];
+}
+
+export interface TyreSet {
+  actualCompound: number;
+  visualCompound: number;
+  /** % */
+  wear: number;
+  available: boolean;
+  recommendedSession: number;
+  /** Laps left in the set. */
+  lifeSpan: number;
+  /** Recommended maximum laps for the compound. */
+  usableLife: number;
+  /** Lap time difference to the fitted set. */
+  lapDeltaMs: number;
+  fitted: boolean;
 }
 
 export interface LapInfo {
@@ -286,6 +309,8 @@ export interface LapHistory {
   lastMinis: (MiniSector | null)[];
   /** The player's current lap so far. */
   current: Sample[];
+  /** Your fastest laps on this track from earlier sessions, fastest first. */
+  savedLaps: Lap[];
 }
 
 /** What changed since the previous delta. Applying one is idempotent. */

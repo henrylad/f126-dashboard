@@ -60,3 +60,9 @@ public struct FixedArray100<T> where T : unmanaged
 {
     private T _element;
 }
+
+[InlineArray(20)]
+public struct FixedArray20<T> where T : unmanaged
+{
+    private T _element;
+}

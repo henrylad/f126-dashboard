@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { ERS_MAX_J, type PlayerDetail, type Snapshot } from '../../api/types.ts';
 import type { LapView } from '../../laps/lapView.ts';
-import { lapTime } from '../../lib/format.ts';
+import { delta as fmtDelta, lapTime } from '../../lib/format.ts';
+import { download, stamp, windowCsv } from '../../lib/csv.ts';
 import { ENERGY, ERS_MODES } from '../../lib/meta.ts';
 import { TelemetryHistory } from './history.ts';
 import { CHANNEL_DEFS, RollingChart } from './RollingChart.tsx';
@@ -12,6 +13,7 @@ import { CarSide } from './CarSide.tsx';
 const WINDOWS = [10, 30, 60, 120];
 const WINDOW_KEY = 'pitwall.telemetry.window';
 const HIDDEN_KEY = 'pitwall.telemetry.hidden';
+const REF_KEY = 'pitwall.telemetry.ref';
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -37,6 +39,8 @@ export function Telemetry({ snap, store }: { snap: Snapshot; store: LapView }) {
   });
   const [hidden, setHidden] = useState<string[]>(() => load<string[]>(HIDDEN_KEY, []));
   const [pausedAt, setPausedAt] = useState<number | null>(null);
+  const [withRef, setWithRef] = useState<boolean>(() => load(REF_KEY, true));
+  const best = store.bestLap;
 
   const latest = history.samples.at(-1)?.t ?? snap.sessionTime;
   const end = pausedAt ?? latest;
@@ -44,6 +48,8 @@ export function Telemetry({ snap, store }: { snap: Snapshot; store: LapView }) {
   const shown = available.filter((c) => !hidden.includes(c.key));
 
   const pickWindow = (w: number) => { setWindowS(w); save(WINDOW_KEY, w); };
+  const toggleRef = () => { setWithRef(!withRef); save(REF_KEY, !withRef); };
+  const exportWindow = () => download(`pitwall-telemetry-${stamp()}.csv`, windowCsv(history.samples, end - windowS, end));
   const toggle = (key: string) => {
     const next = hidden.includes(key) ? hidden.filter((k) => k !== key) : [...hidden, key];
     setHidden(next);
@@ -52,7 +58,7 @@ export function Telemetry({ snap, store }: { snap: Snapshot; store: LapView }) {
 
   return (
     <div className="tele">
-      <Strip p={p} flowKw={history.samples.at(-1)?.flowKw ?? 0} />
+      <Strip p={p} flowKw={history.samples.at(-1)?.flowKw ?? 0} deltaMs={store.delta()} />
       <div className="tele-body">
         <div className="tele-main">
           <section className="a-section" aria-labelledby="tele-live">
@@ -67,6 +73,11 @@ export function Telemetry({ snap, store }: { snap: Snapshot; store: LapView }) {
                     </button>
                   ))}
                 </div>
+                <button className="btn" aria-pressed={withRef && !!best} disabled={!best} onClick={toggleRef}
+                  title={best ? `Your best lap ${lapTime(best.timeMs)}, dashed, at the same point on the lap` : 'Available after your first timed lap'}>
+                  vs best lap
+                </button>
+                <button className="btn" onClick={exportWindow} disabled={history.samples.length < 2} title="Download the shown time window as CSV">CSV</button>
                 <button className={`btn ${pausedAt !== null ? 'held' : ''}`} aria-pressed={pausedAt !== null} onClick={() => setPausedAt(pausedAt === null ? latest : null)}>
                   {pausedAt === null ? 'Hold' : 'Resume'}
                 </button>
@@ -83,7 +94,7 @@ export function Telemetry({ snap, store }: { snap: Snapshot; store: LapView }) {
               <p className="section-note held-note">Held at this moment; recording continues. Resume to follow live again.</p>
             )}
             {shown.length ? (
-              <RollingChart history={history} windowS={windowS} end={end} channels={shown} />
+              <RollingChart history={history} windowS={windowS} end={end} channels={shown} refLap={withRef && best ? best.samples : null} />
             ) : (
               <p className="section-note">All channels are hidden. Pick one above.</p>
             )}
@@ -99,7 +110,7 @@ export function Telemetry({ snap, store }: { snap: Snapshot; store: LapView }) {
 }
 
 /** One row of figures readable at a glance. */
-function Strip({ p, flowKw }: { p: PlayerDetail; flowKw: number }) {
+function Strip({ p, flowKw, deltaMs }: { p: PlayerDetail; flowKw: number; deltaMs: number | null }) {
   const gear = p.gear === 0 ? 'N' : p.gear < 0 ? 'R' : String(p.gear);
   const ers = Math.max(0, Math.min(100, (p.ersStoreJ / ERS_MAX_J) * 100));
   const deploying = flowKw > 2, harvesting = flowKw < -2;
@@ -123,7 +134,7 @@ function Strip({ p, flowKw }: { p: PlayerDetail; flowKw: number }) {
       <div className="ts"><span className="k">RPM</span><span className="v num">{p.rpm.toLocaleString('en-US')}</span><Bar value={p.rpm / (p.maxRpm || 1)} colour="var(--muted)" /></div>
       <div className="ts"><span className="k">Throttle</span><span className="v num">{Math.round(p.throttle * 100)}%</span><Bar value={p.throttle} colour="var(--green)" /></div>
       <div className="ts"><span className="k">Brake</span><span className="v num">{Math.round(p.brake * 100)}%</span><Bar value={p.brake} colour="var(--red)" /></div>
-      <div className="ts"><span className="k">Steering</span><span className="v num">{p.steer >= 0 ? '' : '−'}{Math.abs(Math.round(p.steer * 100))}%</span><SteerBar value={p.steer} /></div>
+      <div className="ts"><span className="k">Steering</span><span className="v num">{Math.round(p.steer * 100) < 0 ? '−' : ''}{Math.abs(Math.round(p.steer * 100))}%</span><SteerBar value={p.steer} /></div>
       <div className="ts"><span className="k">Battery</span><span className="v num">{ers.toFixed(0)}%</span><Bar value={ers / 100} colour="var(--blue)" /></div>
       <div className="ts">
         <span className="k">ERS</span>
@@ -147,6 +158,11 @@ function Strip({ p, flowKw }: { p: PlayerDetail; flowKw: number }) {
         <span className="k">Lap {p.lap}</span>
         <span className={`v num ${p.race.currentLapInvalid ? 'lost' : ''}`}>{lapTime(p.currentLapMs)}</span>
         <span className="s">Last <span className="num">{lapTime(p.race.lastLapMs)}</span></span>
+      </div>
+      <div className="ts">
+        <span className="k">Δ best lap</span>
+        <span className={`v num ${deltaMs === null ? 'dim' : deltaMs <= 0 ? 'gained' : 'lost'}`}>{deltaMs === null ? '—' : fmtDelta(deltaMs)}</span>
+        <span className="s">{deltaMs === null ? 'After a timed lap' : 'Live, at this point'}</span>
       </div>
       {alerts.length > 0 && (
         <div className="ts alerts" role="status">

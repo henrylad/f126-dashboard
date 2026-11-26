@@ -5,6 +5,9 @@ import type { Snapshot } from '../../api/types.ts';
 
 export interface TSample {
   t: number; // session time, s
+  lap: number;
+  /** Lap distance in metres; negative before the line on the grid. */
+  d: number;
   speed: number;
   throttle: number;
   brake: number;
@@ -59,6 +62,8 @@ export class TelemetryHistory {
     const c = p.chassis;
     this.samples.push({
       t,
+      lap: p.lap,
+      d: p.lapDistance,
       speed: p.speed,
       throttle: p.throttle,
       brake: p.brake,
