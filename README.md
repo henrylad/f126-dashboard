@@ -17,10 +17,14 @@ The UDP parser is written from scratch (`backend/src/PitWall.Telemetry`) for
 - **Telemetry**: your car only, every channel. Rolling traces of speed, pedals, steering,
   gear and RPM, battery, deploy/harvest flow by ERS mode, ICE and MGU-K power, G-forces, ride
   height and wheel slip. Also an energy breakdown with the per-lap harvest limit, a G-G
-  diagram, per-wheel slip, loads and suspension, tyres and brakes, power-unit wear, race
-  control and the car setup.
-- **Lap analysis**: compare any of your laps with each other and with other drivers' fastest
-  laps; it leads with the loss zones (where, how much, and why) and zooms every chart to them.
+  diagram, per-wheel slip, loads and suspension, tyres and brakes, your tyre sets for the
+  weekend, power-unit wear, race control and the car setup. Your best lap can be drawn dashed
+  under the live traces, and any time window exports as CSV.
+- **Lap analysis**: compare any of your laps with each other, with other drivers' fastest
+  laps and with your fastest laps on the track from earlier sessions; it leads with the loss
+  zones (where, how much, and why) and zooms every chart to them. Compared laps export as CSV.
+- A **lap library**: every clean timed lap is kept in a SQLite file (`data/pitwall.db`), so
+  the next session on the same track can be measured against your all-time best.
 - A **simulator** that emits real 2026-format packets, so everything runs without the game,
   and **record / replay** of raw sessions.
 
@@ -58,7 +62,8 @@ docker compose run --rm --service-ports pitwall --record recordings/race.f1rec
 The container runs on its own `pitwall` bridge network and publishes the dashboard on
 `5173/tcp` and the telemetry port on `20777/udp`. Point the game at **your PC's LAN IP**
 (not the container's IP). Change the host ports with `PITWALL_HTTP_PORT` / `PITWALL_UDP_PORT`,
-e.g. `PITWALL_HTTP_PORT=8080 docker compose up -d`. Recordings land in `./recordings`.
+e.g. `PITWALL_HTTP_PORT=8080 docker compose up -d`. Recordings land in `./recordings`, and
+your lap library in `./data`.
 
 ### Game settings
 
@@ -86,7 +91,13 @@ sudo firewall-cmd --permanent --add-port=20777/udp # permanently
 dotnet run -- --record session.f1rec   # save raw packets while driving
 dotnet run -- --replay session.f1rec   # replay them later (loops)
 dotnet run -- --udp-port 20778 --port 8080
+dotnet run -- --data laps.db           # where the lap library lives (default data/pitwall.db)
+dotnet run -- --no-save-laps           # don't keep laps from this run
+dotnet run -- --sim --save-laps        # the simulator keeps none unless asked
 ```
+
+The simulator never writes to the lap library by default, so its laps can't mix with
+your real ones.
 
 ## Layout
 
@@ -94,19 +105,24 @@ dotnet run -- --udp-port 20778 --port 8080
 backend/src/PitWall.Telemetry   2026 packet layouts + little-endian codec
 backend/src/PitWall.Core        folds packets into a Snapshot; lap archive, mini sectors
 backend/src/PitWall.Simulator   synthetic race that emits real 2026 binary packets
-backend/src/PitWall.Server      UDP / sim / replay → WebSocket (30 Hz), serves the dashboard
+backend/src/PitWall.Server      UDP / sim / replay → WebSocket (30 Hz), lap library, serves the dashboard
 backend/tests                   packet sizes vs the spec, round-trips, lap tracking
 frontend/                       React dashboard (Vite)
 ```
 
-`dotnet test` (in `backend/`) checks every packet size against the spec and round-trips fields.
-`npm run typecheck` (in `frontend/`) checks the dashboard.
+`dotnet test` (in `backend/`) checks every packet size against the spec, round-trips fields,
+runs a simulated race end to end and exercises the lap library.
+`npm test` (in `frontend/`) covers the lap maths, loss zones, energy states, the telemetry
+buffer and CSV export; `npm run typecheck` checks the rest.
 
 ## Known unknowns
 
 - The 2026 format sends G-forces as int16. The scale factor isn't confirmed; it's
   `GForceScale` in `backend/src/PitWall.Telemetry/PacketFormat.cs` — adjust if the G readout looks off in-game.
 - ERS percentage assumes a 4 MJ store (`ERS_MAX_J` in `frontend/src/api/types.ts`).
+- Extended motion (packet 13), car setups (packet 5) and tyre sets (packet 12) follow the
+  published layouts but haven't been checked against a real capture yet. Suspension travel
+  and velocity are shown in the game's own units.
 
 ## License
 
