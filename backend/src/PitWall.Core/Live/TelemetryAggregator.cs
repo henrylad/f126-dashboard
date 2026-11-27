@@ -232,6 +232,8 @@ public sealed class TelemetryAggregator(TelemetrySource source, TimeProvider tim
                 // Wheel arrays are RL, RR, FL, FR.
                 SlipFront = i == playerIdx && _motionEx is { } mx ? (mx.WheelSlipRatio[2] + mx.WheelSlipRatio[3]) / 2 * 100 : null,
                 SlipRear = i == playerIdx && _motionEx is { } mx2 ? (mx2.WheelSlipRatio[0] + mx2.WheelSlipRatio[1]) / 2 * 100 : null,
+                SpeedTrapKmh = l.SpeedTrapFastestSpeed,
+                SpeedTrapLap = l.SpeedTrapFastestLap,
             });
         }
         return [.. rows.OrderBy(r => r.Position)];

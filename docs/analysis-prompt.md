@@ -5,6 +5,10 @@ where on the lap you lose time, why, and what to do differently.
 
 ## Getting the data
 
+0. **Everything at once**: **Export session (ZIP)** in **Lap analysis** downloads the whole
+   session (laps, samples, speed traps, setup per lap, tyre sets, conditions). Unzip it and
+   attach `laps.csv` and `samples.csv` (plus `session.csv` for the conditions); the
+   included README.txt explains every column.
 1. **Lap comparison**: in **Lap analysis**, tick your lap and a reference (your best lap,
    *Me vs all-time best*, or another driver), then press **Export compared (CSV)**. Add
    **Export table (CSV)** for sectors, energy and tyre stats of every lap.

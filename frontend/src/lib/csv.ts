@@ -3,10 +3,11 @@
 import type { Lap } from '../laps/lapMath.ts';
 import type { TSample } from '../components/telemetry/history.ts';
 
-type Cell = string | number | null | undefined;
+export type Cell = string | number | boolean | null | undefined;
 
 function cell(v: Cell): string {
   if (v === null || v === undefined || (typeof v === 'number' && !Number.isFinite(v))) return '';
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
   const s = typeof v === 'number' ? String(Math.round(v * 1e4) / 1e4) : v;
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
@@ -72,9 +73,9 @@ export function windowCsv(samples: TSample[], from: number, to: number): string 
   return toCsv(header, rows);
 }
 
-/** Hands the text to the browser as a file download. */
-export function download(name: string, text: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+/** Hands text (CSV) or bytes (e.g. a ZIP) to the browser as a file download. */
+export function download(name: string, data: string | Uint8Array<ArrayBuffer>, type = 'text/csv;charset=utf-8') {
+  const url = URL.createObjectURL(new Blob([data], { type }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;

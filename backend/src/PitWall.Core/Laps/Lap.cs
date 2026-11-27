@@ -53,6 +53,11 @@ public sealed record LapStats
     public int Compound { get; init; }
     public int TyreAge { get; init; }
     public int GearChanges { get; init; }
+    /// <summary>
+    /// This lap's speed-trap speed, km/h. The game only reports each car's fastest pass,
+    /// so it is known only on laps that set a new fastest pass for the car.
+    /// </summary>
+    public double? SpeedTrapKmh { get; init; }
 }
 
 /// <summary>A completed lap with its sectors, stats and a trimmed telemetry trace.</summary>
@@ -73,6 +78,8 @@ public sealed record Lap
     public required LapStats Stats { get; init; }
     /// <summary>Set on laps loaded from an earlier session; null for this session's laps.</summary>
     public SavedLapInfo? Saved { get; init; }
+    /// <summary>The player's car setup at the end of the lap; null for other cars or before the game sent one.</summary>
+    public Live.SetupInfo? Setup { get; init; }
 }
 
 /// <summary>Where a lap from an earlier session came from.</summary>

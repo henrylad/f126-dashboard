@@ -28,6 +28,8 @@ internal sealed class LapArchive(MiniSectorTimer minis)
         public double? FuelStartKg;
         public double? WearStartPct;
         public Lap? Best;
+        /// <summary>The latest setup seen (player only), so a lap keeps the setup it ended with.</summary>
+        public SetupInfo? Setup;
     }
 
     private static readonly List<Sample> NoSamples = [];
@@ -63,7 +65,8 @@ internal sealed class LapArchive(MiniSectorTimer minis)
         _changedBests.Clear();
     }
 
-    public void Record(CarRow car, SessionInfo session)
+    /// <param name="setup">The player's current setup; null for other cars.</param>
+    public void Record(CarRow car, SessionInfo session, SetupInfo? setup = null)
     {
         if (!_recorders.TryGetValue(car.Idx, out var r)) _recorders[car.Idx] = r = new CarRecorder();
 
@@ -79,6 +82,7 @@ internal sealed class LapArchive(MiniSectorTimer minis)
             r.FuelStartKg = prev is null ? null : car.FuelKg;
             r.WearStartPct = prev is null ? null : car.TyreWearAvg;
         }
+        if (setup is not null) r.Setup = setup;
 
         if (car.CurrentLapMs > LapRules.LapStartGraceMs)
         {
@@ -137,7 +141,9 @@ internal sealed class LapArchive(MiniSectorTimer minis)
             WearEndPct = car.TyreWearAvg,
             Compound = car.Compound,
             TyreAge = car.TyreAge,
-        });
+            // Set when this lap's trap pass is the car's fastest so far.
+            SpeedTrapKmh = car.SpeedTrapLap == prev.Lap && car.SpeedTrapKmh > 0 ? car.SpeedTrapKmh : null,
+        }) with { Setup = car.IsPlayer ? r.Setup : null };
 
         if (kind == LapKind.Timed && lap.TimeMs > 0 && (r.Best is null || lap.TimeMs < r.Best.TimeMs))
         {

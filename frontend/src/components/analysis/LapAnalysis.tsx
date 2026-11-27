@@ -12,6 +12,8 @@ import { CompareChart, type Compared } from './CompareChart.tsx';
 import { MiniCompare } from './MiniCompare.tsx';
 import { EnergyCompare } from './EnergyCompare.tsx';
 import { LapTable } from './LapTable.tsx';
+import { download } from '../../lib/csv.ts';
+import { sessionExport } from '../../lib/sessionExport.ts';
 
 const byTime = (a: Lap, b: Lap) => a.timeMs - b.timeMs;
 const usable = (l: Lap) => l.kind === 'timed' && hasTelemetry(l);
@@ -203,7 +205,8 @@ export function LapAnalysis({ snap, store }: { snap: Snapshot; store: LapView })
         </section>
 
         <section className="a-section" aria-labelledby="h-data">
-          <LapTable headingId="h-data" laps={laps} driverLaps={driverLaps} savedLaps={savedLaps} labelOf={labelOf} ownerOf={ownerOf} bests={bests}
+          <LapTable headingId="h-data" laps={laps} driverLaps={driverLaps} savedLaps={savedLaps} labelOf={labelOf}
+            onExportSession={() => { const f = sessionExport(snap, store); download(f.name, f.data, 'application/zip'); }} ownerOf={ownerOf} bests={bests}
             refLap={refLap} compared={compared} colourOf={(id) => { const s = selected.find((x) => x.id === id); return s ? colourOfLap(id, s.slot) : null; }} />
         </section>
       </div>

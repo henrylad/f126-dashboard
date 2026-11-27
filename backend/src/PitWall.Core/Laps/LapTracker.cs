@@ -90,7 +90,7 @@ public sealed class LapTracker
             // Order matters: archiving a lap reads the mini sectors the timer just closed.
             _minis.Update(car, trackLength);
             _outline.Learn(car, trackLength);
-            _archive.Record(car, session);
+            _archive.Record(car, session, car.IsPlayer ? snapshot.Player?.Setup : null);
         }
     }
 

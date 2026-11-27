@@ -50,9 +50,12 @@ public sealed class RaceSimulator
         public bool Overtake;
         public int LastPos;
         public double Throttle, Brake;
+        public double TrapKmh;
+        public byte TrapLap = 255;
     }
 
     private readonly SimTrack _track = new();
+    private double _trapD;
     private readonly Random _random;
     private readonly SimCar[] _cars;
     private readonly ulong _uid;
@@ -77,6 +80,8 @@ public sealed class RaceSimulator
         _cars = [.. Grid.Select((g, i) => new SimCar(g.Name, g.TeamId, g.Number,
             pace: i == 0 ? 0.99 : 0.955 + _random.NextDouble() * 0.04,
             grid: -12 - i * 8) { LastPos = i + 1 })];
+        // The speed trap sits where the speed profile peaks, at the end of the longest straight.
+        _trapD = Array.IndexOf(_track.Speed, _track.Speed.Max()) * SimTrack.Step;
     }
 
     /// <summary>Packets announcing the session start.</summary>
@@ -147,6 +152,14 @@ public sealed class RaceSimulator
         car.Accel = (car.Speed - prev) / Dt;
         car.FeltAccel += (car.Accel - car.FeltAccel) * 0.15;
         car.Dist += car.Speed * Dt;
+        // Speed trap at the fastest point of the track.
+        var lapBefore = (car.Dist - car.Speed * Dt) - Math.Floor((car.Dist - car.Speed * Dt) / SimTrack.Length) * SimTrack.Length;
+        var lapNow = LapDistance(car);
+        if (car.Dist > SimTrack.Length && lapBefore < _trapD && lapNow >= _trapD && car.Speed * 3.6 > car.TrapKmh)
+        {
+            car.TrapKmh = car.Speed * 3.6;
+            car.TrapLap = (byte)(Math.Floor(car.Dist / SimTrack.Length) + 1);
+        }
         var bin = (int)Math.Floor(car.Dist / 10);
         for (var b = car.PassTimes.Count; b <= bin; b++) car.PassTimes.Add(_t);
 
@@ -407,7 +420,8 @@ public sealed class RaceSimulator
             GridPosition = (byte)(ci + 1),
             DriverStatus = 4,
             ResultStatus = 2,
-            SpeedTrapFastestLap = 255,
+            SpeedTrapFastestSpeed = (float)c.TrapKmh,
+            SpeedTrapFastestLap = c.TrapLap,
         };
     }
 

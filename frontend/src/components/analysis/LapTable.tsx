@@ -61,6 +61,8 @@ interface Props {
   colourOf: (id: number) => string | null;
   /** Laps being compared, with their chart labels, for the CSV export. */
   compared: { lap: Lap; label: string }[];
+  /** Downloads everything recorded this session as a ZIP. */
+  onExportSession: () => void;
 }
 
 /** Session-best mark: a drawn dot, with its meaning for screen readers. */
@@ -74,7 +76,7 @@ const Arrow = ({ dir }: { dir: 1 | -1 }) => (
   </svg>
 );
 
-export function LapTable({ headingId, laps, driverLaps, savedLaps, labelOf, ownerOf, bests, refLap, colourOf, compared }: Props) {
+export function LapTable({ headingId, laps, driverLaps, savedLaps, labelOf, ownerOf, bests, refLap, colourOf, compared, onExportSession }: Props) {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'order', dir: 1 });
   const [all, setAll] = useState(false);
   const cols = all ? [...CORE, ...MORE] : CORE;
@@ -166,6 +168,10 @@ export function LapTable({ headingId, laps, driverLaps, savedLaps, labelOf, owne
         <h2 id={headingId}>Lap data</h2>
         <span className="aside"><Best /> session best across all drivers · gaps to the reference</span>
         <span className="head-tools">
+          <button className="btn primary" onClick={onExportSession}
+            title="Download every lap of this session with all samples, sectors, mini sectors, stats, speed traps, setup and tyre sets (ZIP of CSV files)">
+            Export session (ZIP)
+          </button>
           <button className="btn" disabled={!compared.length} onClick={() => download(`pitwall-laps-${stamp()}.csv`, lapsCsv(compared))}
             title={compared.length ? 'Download every sample of the compared laps as CSV' : 'Pick laps to compare first'}>
             Export compared (CSV)

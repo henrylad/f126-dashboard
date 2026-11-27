@@ -18,6 +18,7 @@ public sealed record LapContext
     public double WearEndPct { get; init; }
     public int Compound { get; init; }
     public int TyreAge { get; init; }
+    public double? SpeedTrapKmh { get; init; }
 }
 
 public static class LapSummary
@@ -98,6 +99,7 @@ public static class LapSummary
                 Compound = ctx.Compound,
                 TyreAge = ctx.TyreAge,
                 GearChanges = gearChanges,
+                SpeedTrapKmh = ctx.SpeedTrapKmh,
             },
         };
     }

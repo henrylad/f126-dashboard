@@ -75,6 +75,10 @@ export interface CarRow {
   /** Mean slip ratio per axle in %; only for the player. */
   slipFront: number | null;
   slipRear: number | null;
+  /** Fastest speed-trap pass this session, km/h; 0 before the first. */
+  speedTrapKmh: number;
+  /** Its lap; 255 before the first. */
+  speedTrapLap: number;
 }
 
 export interface PlayerDetail {

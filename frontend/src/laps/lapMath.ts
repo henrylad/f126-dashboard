@@ -1,4 +1,5 @@
 // Archived laps as the server sends them, and the maths the charts need on them.
+import type { SetupInfo } from '../api/types.ts';
 
 export interface Sample {
   d: number; // lap distance, metres
@@ -43,6 +44,8 @@ export interface LapStats {
   compound: number;
   tyreAge: number;
   gearChanges: number;
+  /** This lap's speed-trap speed; only known when it set the car's fastest pass so far. */
+  speedTrapKmh?: number | null;
 }
 
 export interface Lap {
@@ -57,6 +60,8 @@ export interface Lap {
   stats: LapStats;
   /** Set on your laps from earlier sessions (carIdx is -1 then). */
   saved?: { savedAt: string; sessionType: number } | null;
+  /** Your setup at the end of the lap; null for other drivers. */
+  setup?: SetupInfo | null;
 }
 
 /** Short date of a lap from an earlier session, e.g. "24 Nov". */

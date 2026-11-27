@@ -679,3 +679,7 @@ body {
 .sets-table tbody tr.gone { opacity: 0.45; }
 .sets-table th[scope='row'] { display: flex; align-items: center; gap: 2px; color: var(--text); }
 .sets-table thead th:first-child { text-align: left; }
+
+/* The one filled control: the session export. */
+.btn.primary { background: rgba(31, 111, 235, 0.18); border-color: var(--blue); }
+.btn.primary:hover:not(:disabled) { background: rgba(31, 111, 235, 0.28); border-color: var(--blue); }

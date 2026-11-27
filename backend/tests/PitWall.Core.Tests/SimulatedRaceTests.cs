@@ -72,6 +72,22 @@ public class SimulatedRaceTests
     }
 
     [Fact]
+    public void Player_laps_keep_their_setup_and_the_speed_trap_lands_on_its_lap()
+    {
+        var (state, laps) = Run(seconds: 200);
+        var player = state.Snapshot().Cars.Single(c => c.IsPlayer);
+
+        Assert.All(laps.Laps, l => Assert.Equal(55, l.Setup?.BrakeBias));
+        Assert.All(laps.DriverBests(), l => Assert.Null(l.Setup));
+        Assert.True(player.SpeedTrapKmh > 300);
+        // Each lap that improved the car's fastest pass keeps its own trap speed.
+        var trapLaps = laps.Laps.Where(l => l.Stats.SpeedTrapKmh is not null).ToList();
+        Assert.NotEmpty(trapLaps);
+        Assert.All(trapLaps, l => Assert.InRange(l.Stats.SpeedTrapKmh!.Value, 300, player.SpeedTrapKmh));
+        Assert.Equal(trapLaps.Select(l => l.Stats.SpeedTrapKmh), trapLaps.Select(l => l.Stats.SpeedTrapKmh).Order());
+    }
+
+    [Fact]
     public void Lap_samples_carry_steering_revs_g_forces_and_the_players_slip()
     {
         var (_, laps) = Run(seconds: 200);

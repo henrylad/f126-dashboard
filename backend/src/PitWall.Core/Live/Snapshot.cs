@@ -107,6 +107,10 @@ public sealed record CarRow
     /// <summary>Mean slip ratio per axle in %; only for the player, from extended motion.</summary>
     public double? SlipFront { get; init; }
     public double? SlipRear { get; init; }
+    /// <summary>The car's fastest speed-trap pass this session, km/h; 0 before the first.</summary>
+    public double SpeedTrapKmh { get; init; }
+    /// <summary>Lap of that pass; 255 before the first.</summary>
+    public int SpeedTrapLap { get; init; } = 255;
 }
 
 /// <summary>Wear and damage percentages of the player's car.</summary>
